@@ -128,10 +128,19 @@ int main() {
 
     printf("wifi connected\n");
 
+    for (int i = 0; i < 3; i++) {
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        sleep_ms(200);
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        sleep_ms(200);
+    }
+
     mqtt_client_t* mqtt = mqtt_client_new();
     mqtt_connect(mqtt);
 
     for (;;) {
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+
         if (!mqtt_connected) {
             printf("reconnecting\n");
             mqtt_connect(mqtt);
@@ -146,6 +155,8 @@ int main() {
             std::format(R"({{"usec":{},"temp":{}}})", time_usec, temp);
 
         mqtt_publish(mqtt, json_str);
+
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
         sleep_ms(100);
     }
