@@ -1,0 +1,9 @@
+[project]
+name = "preview"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.3",
+    "polars>=1.31.0",
+    "requests>=2.32.4",
+]
