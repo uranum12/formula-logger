@@ -21,10 +21,10 @@
 #define SPI_RX 4
 #define SPI_CS 5
 
-#define WIFI_SSID "aterm-1cf252-g"
-#define WIFI_PASSWORD "5955909c4167e"
+#define WIFI_SSID "Buffalo-G-4810"
+#define WIFI_PASSWORD "password"
 
-#define MQTT_BROKER_IP "192.168.10.107"
+#define MQTT_BROKER_IP "192.168.11.10"
 #define MQTT_BROKER_PORT 1883
 
 enum class Channel : uint8_t {
