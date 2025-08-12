@@ -85,6 +85,10 @@ func api_server(logger *slog.Logger, db *sql.DB) {
 	e.Use(slogecho.New(logger))
 	e.Use(middleware.Recover())
 
+	e.GET("/", func(c echo.Context) error {
+		return c.File("dist/index.html")
+	})
+
 	e.GET("/:topic", func(c echo.Context) error {
 		topic := c.Param("topic")
 		limit_param := c.QueryParam("limit")
