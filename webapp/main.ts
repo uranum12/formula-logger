@@ -3,13 +3,19 @@ import Chart, { type ChartConfiguration } from "chart.js/auto"
 const el_canvas = document.getElementById("realtimeChart") as HTMLCanvasElement
 const el_time = document.getElementById("lastUpdate") as HTMLDivElement
 const el_select = document.getElementById("topicSelect") as HTMLSelectElement
+const el_number = document.getElementById("numberLimit") as HTMLInputElement
 const el_check = document.getElementById("checkStop") as HTMLInputElement
 
 let topic: string = "temp"
+let limit: number = 100
 let stop: boolean = false
 
 el_select.addEventListener("change", () => {
   topic = el_select.value
+})
+
+el_number.addEventListener("change", () => {
+  limit = parseInt(el_number.value, 10)
 })
 
 el_check.addEventListener("change", () => {
@@ -115,7 +121,7 @@ async function fetchDataAndUpdateChart() {
   if (stop) return
 
   try {
-    const res = await fetch(`/${topic}`)
+    const res = await fetch(`/${topic}?limit=${limit}`)
     const json = await res.json()
     const data = json.data.map((entry) => JSON.parse(entry.payload)) as Item[]
 

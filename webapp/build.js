@@ -28,6 +28,10 @@ const html = `
     <option value="acc">加速度センサ</option>
   </select>
   <label>
+    <input type="number" id="numberLimit" step="1" value="100">
+    上限
+  </label>
+  <label>
     <input type="checkbox" id="checkStop">
     ストップ
   </label>
