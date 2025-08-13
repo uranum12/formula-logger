@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,6 +22,7 @@
 #define PIN_SPI_RX 4
 #define PIN_SPI_CS_BME280 5
 #define PIN_SPI_CS_MCP3204 6
+#define PIN_SPI_CS_MCP3002 7
 
 #define WIFI_SSID "Buffalo-G-4810"
 #define WIFI_PASSWORD "password"
@@ -339,10 +341,32 @@ uint16_t mcp3204_get_raw(mcp3204_channel_t channel) {
     return (rx_buf[1] & 0x0F) << 8 | rx_buf[2];
 }
 
+typedef enum {
+    mcp3002_channel_single_ch0 = 0b10,
+    mcp3002_channel_single_ch1 = 0b11,
+    mcp3002_channel_diff_ch0_ch1 = 0b00,
+    mcp3002_channel_diff_ch1_ch0 = 0b01,
+} mcp3002_channel_t;
+
+uint16_t mcp3002_get_raw(mcp3002_channel_t channel) {
+    const uint8_t tx_buf[2] = {
+        0x90 | channel << 5,
+        0x00,
+    };
+    uint8_t rx_buf[2];
+
+    cs_select(PIN_SPI_CS_MCP3002);
+    spi_write_read_blocking(SPI_ID, tx_buf, rx_buf, 2);
+    cs_deselect(PIN_SPI_CS_MCP3002);
+
+    return (rx_buf[0] & 0x07) << 7 | rx_buf[1] >> 1;
+}
+
 // clang-format off
 bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204"));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3002, "SPI CS for mcp3002"));
 // clang-format on
 
 int main() {
@@ -361,6 +385,10 @@ int main() {
     gpio_init(PIN_SPI_CS_MCP3204);
     gpio_set_dir(PIN_SPI_CS_MCP3204, GPIO_OUT);
     gpio_put(PIN_SPI_CS_MCP3204, 1);
+
+    gpio_init(PIN_SPI_CS_MCP3002);
+    gpio_set_dir(PIN_SPI_CS_MCP3002, GPIO_OUT);
+    gpio_put(PIN_SPI_CS_MCP3002, 1);
 
     reset();
 
@@ -428,6 +456,26 @@ int main() {
         double y = raw_y * 3.3 / 4096;
         double z = raw_z * 3.3 / 4096;
 
+        uint16_t raw_in = mcp3002_get_raw(mcp3002_channel_single_ch0);
+        uint16_t raw_out = mcp3002_get_raw(mcp3002_channel_single_ch1);
+
+        const double r_ref = 1.0;
+        const double r0 = 10.0;
+        const double b_value = 3435.0;
+        const double t0 = 25.0;
+        const double t_abs = 273.15;
+
+        double in_r = r_ref * raw_in / (1024 - raw_in);
+        double out_r = r_ref * raw_out / (1024 - raw_out);
+
+        double in_k =
+            1.0 / (1.0 / b_value * log(in_r / r0) + 1.0 / (t0 + t_abs));
+        double out_k =
+            1.0 / (1.0 / b_value * log(out_r / r0) + 1.0 / (t0 + t_abs));
+
+        double in = in_k - t_abs;
+        double out = out_k - t_abs;
+
         do {
             sleep_ms(10);
         } while (is_status_measuring(get_status()));
@@ -449,10 +497,13 @@ int main() {
         auto json_temp =
             std::format(R"({{"usec":{},"temp":{},"pres":{},"hum":{}}})",
                         time_usec, temp, pres, hum);
+        auto json_water = std::format(R"({{"usec":{},"in":{},"out":{}}})",
+                                      time_usec, in, out);
         auto json_acc = std::format(R"({{"usec":{},"x":{},"y":{},"z":{}}})",
                                     time_usec, x, y, z);
 
         mqtt_publish(mqtt, "temp", json_temp);
+        mqtt_publish(mqtt, "water", json_water);
         mqtt_publish(mqtt, "acc", json_acc);
 
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
