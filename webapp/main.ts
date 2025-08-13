@@ -121,7 +121,9 @@ async function fetchDataAndUpdateChart() {
   if (stop) return
 
   try {
-    const res = await fetch(`/${topic}?limit=${limit}`)
+    const res = await fetch(`/${topic}?limit=${limit}`, {
+      signal: AbortSignal.timeout(1000),
+    })
     const json = await res.json()
     const data = json.data.map((entry) => JSON.parse(entry.payload)) as Item[]
 
