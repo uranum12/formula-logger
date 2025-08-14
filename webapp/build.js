@@ -26,6 +26,7 @@ const html = `
   <select id="topicSelect">
     <option value="temp" selected>温湿度計</option>
     <option value="acc">加速度センサ</option>
+    <option value="water">冷却液 温度センサ</option>
   </select>
   <label>
     <input type="number" id="numberLimit" step="1" value="100">

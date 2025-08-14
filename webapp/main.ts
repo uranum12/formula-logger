@@ -115,6 +115,8 @@ type Item = {
   x?: number
   y?: number
   z?: number
+  in?: number
+  out?: number
 }
 
 async function fetchDataAndUpdateChart() {
@@ -169,6 +171,23 @@ async function fetchDataAndUpdateChart() {
         x: entry.usec,
         y: entry.z!,
       }))
+    } else if (topic === "water") {
+      chart.data.datasets[0].label = "in"
+      chart.data.datasets[1].label = "out"
+      chart.data.datasets[2].label = "null"
+      chart.options.scales.y0!.title!.text = "in"
+      chart.options.scales.y1!.title!.text = "out"
+      chart.options.scales.y2!.title!.text = "null"
+
+      chart.data.datasets[0].data = data.map((entry) => ({
+        x: entry.usec,
+        y: entry.in!,
+      }))
+      chart.data.datasets[1].data = data.map((entry) => ({
+        x: entry.usec,
+        y: entry.out!,
+      }))
+      chart.data.datasets[2].data = []
     } else {
       console.error(`invalid topic: ${topic}`)
     }
