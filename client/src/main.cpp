@@ -18,6 +18,7 @@
 #include <pico/time.h>
 
 #include "bme280.h"
+#include "mcp3208.h"
 
 #define SPI_ID spi0
 #define SPI_BAUD 1'000'000
@@ -26,26 +27,13 @@
 #define PIN_SPI_TX 3
 #define PIN_SPI_RX 4
 #define PIN_SPI_CS_BME280 5
-#define PIN_SPI_CS_MCP3204 6
-#define PIN_SPI_CS_MCP3002 7
+#define PIN_SPI_CS_MCP3208 6
 
 #define WIFI_SSID "Buffalo-G-4810"
 #define WIFI_PASSWORD "password"
 
 #define MQTT_BROKER_IP "192.168.11.10"
 #define MQTT_BROKER_PORT 1883
-
-static inline void cs_select(uint8_t pin_cs) {
-    asm volatile("nop \n nop \n nop");
-    gpio_put(pin_cs, 0);
-    asm volatile("nop \n nop \n nop");
-}
-
-static inline void cs_deselect(uint8_t pin_cs) {
-    asm volatile("nop \n nop \n nop");
-    gpio_put(pin_cs, 1);
-    asm volatile("nop \n nop \n nop");
-}
 
 bool mqtt_connected = false;
 
@@ -91,58 +79,10 @@ void mqtt_publish(mqtt_client_t* client, const std::string& topic_s,
     }
 }
 
-typedef enum {
-    mcp3204_channel_single_ch0 = 0b1000,
-    mcp3204_channel_single_ch1 = 0b1001,
-    mcp3204_channel_single_ch2 = 0b1010,
-    mcp3204_channel_single_ch3 = 0b1011,
-    mcp3204_channel_diff_ch0_ch1 = 0b0000,
-    mcp3204_channel_diff_ch1_ch0 = 0b0001,
-    mcp3204_channel_diff_ch2_ch3 = 0b0010,
-    mcp3204_channel_diff_ch3_ch2 = 0b0011,
-} mcp3204_channel_t;
-
-uint16_t mcp3204_get_raw(mcp3204_channel_t channel) {
-    uint8_t tx_buf[3] = {
-        0x02 | (channel >> 3),
-        (channel & 0x07) << 5,
-        0x00,
-    };
-    uint8_t rx_buf[3];
-
-    cs_select(PIN_SPI_CS_MCP3204);
-    spi_write_read_blocking(SPI_ID, tx_buf, rx_buf, 3);
-    cs_deselect(PIN_SPI_CS_MCP3204);
-
-    return (rx_buf[1] & 0x0F) << 8 | rx_buf[2];
-}
-
-typedef enum {
-    mcp3002_channel_single_ch0 = 0b10,
-    mcp3002_channel_single_ch1 = 0b11,
-    mcp3002_channel_diff_ch0_ch1 = 0b00,
-    mcp3002_channel_diff_ch1_ch0 = 0b01,
-} mcp3002_channel_t;
-
-uint16_t mcp3002_get_raw(mcp3002_channel_t channel) {
-    const uint8_t tx_buf[2] = {
-        0x90 | channel << 5,
-        0x00,
-    };
-    uint8_t rx_buf[2];
-
-    cs_select(PIN_SPI_CS_MCP3002);
-    spi_write_read_blocking(SPI_ID, tx_buf, rx_buf, 2);
-    cs_deselect(PIN_SPI_CS_MCP3002);
-
-    return (rx_buf[0] & 0x07) << 7 | rx_buf[1] >> 1;
-}
-
 // clang-format off
 bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
-bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204"));
-bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3002, "SPI CS for mcp3002"));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3208, "SPI CS for mcp3208"));
 // clang-format on
 
 int main() {
@@ -158,13 +98,9 @@ int main() {
     gpio_set_dir(PIN_SPI_CS_BME280, GPIO_OUT);
     gpio_put(PIN_SPI_CS_BME280, 1);
 
-    gpio_init(PIN_SPI_CS_MCP3204);
-    gpio_set_dir(PIN_SPI_CS_MCP3204, GPIO_OUT);
-    gpio_put(PIN_SPI_CS_MCP3204, 1);
-
-    gpio_init(PIN_SPI_CS_MCP3002);
-    gpio_set_dir(PIN_SPI_CS_MCP3002, GPIO_OUT);
-    gpio_put(PIN_SPI_CS_MCP3002, 1);
+    gpio_init(PIN_SPI_CS_MCP3208);
+    gpio_set_dir(PIN_SPI_CS_MCP3208, GPIO_OUT);
+    gpio_put(PIN_SPI_CS_MCP3208, 1);
 
     bme280_reset();
 
@@ -226,16 +162,16 @@ int main() {
 
         bme280_set_mode(bme280_mode_forced);
 
-        uint16_t raw_x = mcp3204_get_raw(mcp3204_channel_single_ch0);
-        uint16_t raw_y = mcp3204_get_raw(mcp3204_channel_single_ch1);
-        uint16_t raw_z = mcp3204_get_raw(mcp3204_channel_single_ch2);
+        uint16_t raw_x = mcp3208_get_raw(mcp3208_channel_single_ch0);
+        uint16_t raw_y = mcp3208_get_raw(mcp3208_channel_single_ch1);
+        uint16_t raw_z = mcp3208_get_raw(mcp3208_channel_single_ch2);
 
         double x = raw_x * 3.3 / 4096;
         double y = raw_y * 3.3 / 4096;
         double z = raw_z * 3.3 / 4096;
 
-        uint16_t raw_in = mcp3002_get_raw(mcp3002_channel_single_ch0);
-        uint16_t raw_out = mcp3002_get_raw(mcp3002_channel_single_ch1);
+        uint16_t raw_in = mcp3208_get_raw(mcp3208_channel_single_ch3);
+        uint16_t raw_out = mcp3208_get_raw(mcp3208_channel_single_ch4);
 
         const double r_ref = 1.0;
         const double r0 = 10.0;
