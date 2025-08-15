@@ -36,6 +36,10 @@ const html = `
     <input type="checkbox" id="checkStop">
     ストップ
   </label>
+  <label>
+    <input type="checkbox" id="checkAlign">
+    Y軸を揃える
+  </label>
   <script>${js}</script>
 </body>
 </html>

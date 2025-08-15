@@ -5,10 +5,12 @@ const el_time = document.getElementById("lastUpdate") as HTMLDivElement
 const el_select = document.getElementById("topicSelect") as HTMLSelectElement
 const el_number = document.getElementById("numberLimit") as HTMLInputElement
 const el_check = document.getElementById("checkStop") as HTMLInputElement
+const el_checkAlign = document.getElementById("checkAlign") as HTMLInputElement
 
 let topic: string = "temp"
 let limit: number = 100
 let stop: boolean = false
+let align: boolean = false
 
 el_select.addEventListener("change", () => {
   topic = el_select.value
@@ -20,6 +22,10 @@ el_number.addEventListener("change", () => {
 
 el_check.addEventListener("change", () => {
   stop = el_check.checked
+})
+
+el_checkAlign.addEventListener("change", () => {
+  align = el_checkAlign.checked
 })
 
 const ctx = el_canvas.getContext("2d")
@@ -171,6 +177,37 @@ async function fetchDataAndUpdateChart() {
         x: entry.usec,
         y: entry.z!,
       }))
+
+      if (align) {
+        const y0 = chart.data.datasets[0].data
+          .map((e) => e.y)
+          .filter((e) => Number.isFinite(e))
+        const y1 = chart.data.datasets[1].data
+          .map((e) => e.y)
+          .filter((e) => Number.isFinite(e))
+        const y2 = chart.data.datasets[2].data
+          .map((e) => e.y)
+          .filter((e) => Number.isFinite(e))
+        const min = Math.min(...y0, ...y1, ...y2)
+        const max = Math.max(...y0, ...y1, ...y2)
+
+        const diff = max - min
+        const margin = diff * 0.1
+
+        chart.options.scales!.y0!.min = min - margin
+        chart.options.scales!.y1!.min = min - margin
+        chart.options.scales!.y2!.min = min - margin
+        chart.options.scales!.y0!.max = max + margin
+        chart.options.scales!.y1!.max = max + margin
+        chart.options.scales!.y2!.max = max + margin
+      } else {
+        chart.options.scales!.y0!.min = undefined
+        chart.options.scales!.y1!.min = undefined
+        chart.options.scales!.y2!.min = undefined
+        chart.options.scales!.y0!.max = undefined
+        chart.options.scales!.y1!.max = undefined
+        chart.options.scales!.y2!.max = undefined
+      }
     } else if (topic === "water") {
       chart.data.datasets[0].label = "in"
       chart.data.datasets[1].label = "out"
@@ -188,6 +225,30 @@ async function fetchDataAndUpdateChart() {
         y: entry.out!,
       }))
       chart.data.datasets[2].data = []
+
+      if (align) {
+        const y0 = chart.data.datasets[0].data
+          .map((e) => e.y)
+          .filter((e) => Number.isFinite(e))
+        const y1 = chart.data.datasets[1].data
+          .map((e) => e.y)
+          .filter((e) => Number.isFinite(e))
+        const min = Math.min(...y0, ...y1)
+        const max = Math.max(...y0, ...y1)
+
+        const diff = max - min
+        const margin = diff * 0.1
+
+        chart.options.scales!.y0!.min = min - margin
+        chart.options.scales!.y1!.min = min - margin
+        chart.options.scales!.y0!.max = max + margin
+        chart.options.scales!.y1!.max = max + margin
+      } else {
+        chart.options.scales!.y0!.min = undefined
+        chart.options.scales!.y1!.min = undefined
+        chart.options.scales!.y0!.max = undefined
+        chart.options.scales!.y1!.max = undefined
+      }
     } else {
       console.error(`invalid topic: ${topic}`)
     }
