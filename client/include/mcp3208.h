@@ -28,6 +28,9 @@ typedef enum {
 
 uint16_t mcp3208_get_raw(uint8_t channel);
 
+double calc_kxr94_2050_g(uint16_t raw);
+double calc_103jt_k(uint16_t raw);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

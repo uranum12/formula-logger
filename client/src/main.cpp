@@ -166,29 +166,15 @@ int main() {
         uint16_t raw_y = mcp3208_get_raw(mcp3208_channel_single_ch1);
         uint16_t raw_z = mcp3208_get_raw(mcp3208_channel_single_ch2);
 
-        double x = raw_x * 3.3 / 4096;
-        double y = raw_y * 3.3 / 4096;
-        double z = raw_z * 3.3 / 4096;
+        double x = calc_kxr94_2050_g(raw_x);
+        double y = calc_kxr94_2050_g(raw_y);
+        double z = calc_kxr94_2050_g(raw_z);
 
         uint16_t raw_in = mcp3208_get_raw(mcp3208_channel_single_ch3);
         uint16_t raw_out = mcp3208_get_raw(mcp3208_channel_single_ch4);
 
-        const double r_ref = 1.0;
-        const double r0 = 10.0;
-        const double b_value = 3435.0;
-        const double t0 = 25.0;
-        const double t_abs = 273.15;
-
-        double in_r = r_ref * raw_in / (1024 - raw_in);
-        double out_r = r_ref * raw_out / (1024 - raw_out);
-
-        double in_k =
-            1.0 / (1.0 / b_value * log(in_r / r0) + 1.0 / (t0 + t_abs));
-        double out_k =
-            1.0 / (1.0 / b_value * log(out_r / r0) + 1.0 / (t0 + t_abs));
-
-        double in = in_k - t_abs;
-        double out = out_k - t_abs;
+        double in = calc_103jt_k(raw_in);
+        double out = calc_103jt_k(raw_out);
 
         do {
             sleep_ms(10);
