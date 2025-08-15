@@ -12,6 +12,7 @@
 #include <lwip/apps/mqtt.h>
 #include <lwip/memp.h>
 #include <lwip/stats.h>
+#include <pico.h>
 #include <pico/binary_info.h>
 #include <pico/cyw43_arch.h>
 #include <pico/stdio.h>
@@ -150,68 +151,81 @@ int main() {
     mqtt_client_t* mqtt = mqtt_client_new();
     mqtt_connect(mqtt);
 
+    bool is_bme280_measure = false;
+
     for (;;) {
-        auto time_start = get_absolute_time();
+        for (int i = 0; i < 10; i++) {
+            bool is_bme280_raw_set = false;
 
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+            auto time_start = get_absolute_time();
+            auto time_usec = to_us_since_boot(time_start);
 
-        if (!mqtt_connected) {
-            printf("reconnecting\n");
-            mqtt_connect(mqtt);
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+
+            if (!mqtt_connected) {
+                printf("reconnecting\n");
+                mqtt_connect(mqtt);
+            }
+
+            bme280_raw_data_t raw_data;
+            if (i % 10 == 0) {
+                bme280_set_mode(bme280_mode_forced);
+                is_bme280_measure = true;
+            } else if (is_bme280_measure &&
+                       !bme280_is_status_measuring(bme280_get_status())) {
+                bme280_get_raw_data(&raw_data);
+
+                is_bme280_raw_set = true;
+                is_bme280_measure = false;
+            }
+
+            uint16_t raw_x = mcp3208_get_raw(mcp3208_channel_single_ch0);
+            uint16_t raw_y = mcp3208_get_raw(mcp3208_channel_single_ch1);
+            uint16_t raw_z = mcp3208_get_raw(mcp3208_channel_single_ch2);
+
+            double x = calc_kxr94_2050_g(raw_x);
+            double y = calc_kxr94_2050_g(raw_y);
+            double z = calc_kxr94_2050_g(raw_z);
+
+            uint16_t raw_in = mcp3208_get_raw(mcp3208_channel_single_ch3);
+            uint16_t raw_out = mcp3208_get_raw(mcp3208_channel_single_ch4);
+
+            double in = calc_103jt_k(raw_in);
+            double out = calc_103jt_k(raw_out);
+
+            if (is_bme280_raw_set) {
+                int32_t t_fine = 0;
+                double temp = bme280_compensate_temperature(
+                    raw_data.temperature, &calib_data, &t_fine);
+                double pres = bme280_compensate_pressure(raw_data.pressure,
+                                                         &calib_data, t_fine);
+                double hum = bme280_compensate_humidity(raw_data.humidity,
+                                                        &calib_data, t_fine);
+
+                auto json_temp = std::format(
+                    R"({{"usec":{},"temp":{:.2f},"pres":{:.2f},"hum":{:.2f}}})",
+                    time_usec, temp, pres, hum);
+
+                mqtt_publish(mqtt, "temp", json_temp);
+            }
+
+            auto json_water =
+                std::format(R"({{"usec":{},"in":{:.2f},"out":{:.2f}}})",
+                            time_usec, in, out);
+            auto json_acc =
+                std::format(R"({{"usec":{},"x":{:.2f},"y":{:.2f},"z":{:.2f}}})",
+                            time_usec, x, y, z);
+
+            mqtt_publish(mqtt, "water", json_water);
+            mqtt_publish(mqtt, "acc", json_acc);
+
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+
+            cyw43_arch_poll();
+            tight_loop_contents();
+
+            auto time_next = delayed_by_ms(time_start, 100);
+            sleep_until(time_next);
         }
-
-        bme280_set_mode(bme280_mode_forced);
-
-        uint16_t raw_x = mcp3208_get_raw(mcp3208_channel_single_ch0);
-        uint16_t raw_y = mcp3208_get_raw(mcp3208_channel_single_ch1);
-        uint16_t raw_z = mcp3208_get_raw(mcp3208_channel_single_ch2);
-
-        double x = calc_kxr94_2050_g(raw_x);
-        double y = calc_kxr94_2050_g(raw_y);
-        double z = calc_kxr94_2050_g(raw_z);
-
-        uint16_t raw_in = mcp3208_get_raw(mcp3208_channel_single_ch3);
-        uint16_t raw_out = mcp3208_get_raw(mcp3208_channel_single_ch4);
-
-        double in = calc_103jt_k(raw_in);
-        double out = calc_103jt_k(raw_out);
-
-        do {
-            sleep_ms(10);
-        } while (bme280_is_status_measuring(bme280_get_status()));
-
-        bme280_raw_data_t raw_data;
-        bme280_get_raw_data(&raw_data);
-
-        int32_t t_fine = 0;
-        double temp = bme280_compensate_temperature(raw_data.temperature,
-                                                    &calib_data, &t_fine);
-        double pres =
-            bme280_compensate_pressure(raw_data.pressure, &calib_data, t_fine);
-        double hum =
-            bme280_compensate_humidity(raw_data.humidity, &calib_data, t_fine);
-
-        auto time_current = get_absolute_time();
-        auto time_usec = to_us_since_boot(time_current);
-
-        auto json_temp = std::format(
-            R"({{"usec":{},"temp":{:.2f},"pres":{:.2f},"hum":{:.2f}}})",
-            time_usec, temp, pres, hum);
-        auto json_water = std::format(
-            R"({{"usec":{},"in":{:.2f},"out":{:.2f}}})", time_usec, in, out);
-        auto json_acc =
-            std::format(R"({{"usec":{},"x":{:.2f},"y":{:.2f},"z":{:.2f}}})",
-                        time_usec, x, y, z);
-
-        mqtt_publish(mqtt, "temp", json_temp);
-        mqtt_publish(mqtt, "water", json_water);
-        mqtt_publish(mqtt, "acc", json_acc);
-
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-
-        cyw43_arch_poll();
-
-        auto time_next = delayed_by_ms(time_start, 100);
-        sleep_until(time_next);
     }
 }
