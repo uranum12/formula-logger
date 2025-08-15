@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 pico_sdk_init()
 
-add_executable(main src/main.cpp)
+add_executable(main src/bme280.c src/main.cpp)
 target_include_directories(main PUBLIC include)
 target_link_libraries(
     main PRIVATE pico_stdlib hardware_gpio hardware_spi
