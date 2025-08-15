@@ -6,9 +6,12 @@
 #include <format>
 #include <string>
 
+#include <cyw43_country.h>
 #include <hardware/gpio.h>
 #include <hardware/spi.h>
 #include <lwip/apps/mqtt.h>
+#include <lwip/memp.h>
+#include <lwip/stats.h>
 #include <pico/binary_info.h>
 #include <pico/cyw43_arch.h>
 #include <pico/stdio.h>
@@ -312,6 +315,11 @@ void mqtt_publish(mqtt_client_t* client, const std::string& topic_s,
         printf("published %s\n", payload);
     } else {
         printf("publish error: %d\n", err);
+        if (err == ERR_MEM) {
+            for (int i = 0; i < MEMP_MAX; i++) {
+                MEMP_STATS_DISPLAY(i);
+            }
+        }
     }
 }
 
@@ -413,7 +421,7 @@ int main() {
     };
     set_settings(&settings);
 
-    if (cyw43_arch_init()) {
+    if (cyw43_arch_init_with_country(CYW43_COUNTRY_JAPAN)) {
         printf("Failed to initialize.\n");
         return 1;
     }
@@ -439,6 +447,8 @@ int main() {
     mqtt_connect(mqtt);
 
     for (;;) {
+        auto time_start = get_absolute_time();
+
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
         if (!mqtt_connected) {
@@ -494,13 +504,14 @@ int main() {
         auto time_current = get_absolute_time();
         auto time_usec = to_us_since_boot(time_current);
 
-        auto json_temp =
-            std::format(R"({{"usec":{},"temp":{},"pres":{},"hum":{}}})",
-                        time_usec, temp, pres, hum);
-        auto json_water = std::format(R"({{"usec":{},"in":{},"out":{}}})",
-                                      time_usec, in, out);
-        auto json_acc = std::format(R"({{"usec":{},"x":{},"y":{},"z":{}}})",
-                                    time_usec, x, y, z);
+        auto json_temp = std::format(
+            R"({{"usec":{},"temp":{:.2f},"pres":{:.2f},"hum":{:.2f}}})",
+            time_usec, temp, pres, hum);
+        auto json_water = std::format(
+            R"({{"usec":{},"in":{:.2f},"out":{:.2f}}})", time_usec, in, out);
+        auto json_acc =
+            std::format(R"({{"usec":{},"x":{:.2f},"y":{:.2f},"z":{:.2f}}})",
+                        time_usec, x, y, z);
 
         mqtt_publish(mqtt, "temp", json_temp);
         mqtt_publish(mqtt, "water", json_water);
@@ -508,6 +519,9 @@ int main() {
 
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
-        sleep_ms(100);
+        cyw43_arch_poll();
+
+        auto time_next = delayed_by_ms(time_start, 100);
+        sleep_until(time_next);
     }
 }
