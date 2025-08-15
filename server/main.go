@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,7 +14,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/mattn/go-sqlite3"
-	slogecho "github.com/samber/slog-echo"
 )
 
 func MessageHandler(logger *slog.Logger, db *sql.DB) func(c mqtt.Client, m mqtt.Message) {
@@ -38,13 +36,15 @@ func MessageHandler(logger *slog.Logger, db *sql.DB) func(c mqtt.Client, m mqtt.
 	}
 }
 
-func mqtt_server(logger *slog.Logger, db *sql.DB) {
+func mqtt_server(db *sql.DB) {
 	const broker = "localhost"
 	const port = 1883
 	const client_id = "mqtt-server"
 
 	const topic = "+"
 	const qos = 1
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
@@ -79,10 +79,10 @@ type Res struct {
 	Data []Item `json:"data"`
 }
 
-func api_server(logger *slog.Logger, db *sql.DB) {
+func api_server(db *sql.DB) {
 	e := echo.New()
 
-	e.Use(slogecho.New(logger))
+	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
 	e.GET("/", func(c echo.Context) error {
@@ -168,21 +168,6 @@ func main() {
 	}
 	now := time.Now().In(loc)
 
-	if err := os.Mkdir("log", 0755); err != nil && !os.IsExist(err) {
-		panic(err)
-	}
-	log_path := filepath.Join("log", now.Format(time.RFC3339)+".log")
-
-	f, err := os.Create(log_path)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	multiWriter := io.MultiWriter(os.Stdout, f)
-
-	logger := slog.New(slog.NewJSONHandler(multiWriter, nil))
-
 	if err := os.Mkdir("data", 0755); err != nil && !os.IsExist(err) {
 		panic(err)
 	}
@@ -207,8 +192,8 @@ func main() {
 		panic(err)
 	}
 
-	go mqtt_server(logger, db)
-	go api_server(logger, db)
+	go mqtt_server(db)
+	go api_server(db)
 
 	for {
 		time.Sleep(1 * time.Second)
