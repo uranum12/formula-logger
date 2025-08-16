@@ -10,8 +10,6 @@
 #include <hardware/gpio.h>
 #include <hardware/spi.h>
 #include <lwip/apps/mqtt.h>
-#include <lwip/memp.h>
-#include <lwip/stats.h>
 #include <pico.h>
 #include <pico/binary_info.h>
 #include <pico/cyw43_arch.h>
@@ -72,11 +70,6 @@ void mqtt_publish(mqtt_client_t* client, const std::string& topic_s,
         printf("published %s\n", payload);
     } else {
         printf("publish error: %d\n", err);
-        if (err == ERR_MEM) {
-            for (int i = 0; i < MEMP_MAX; i++) {
-                MEMP_STATS_DISPLAY(i);
-            }
-        }
     }
 }
 
