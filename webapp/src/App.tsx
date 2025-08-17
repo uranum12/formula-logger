@@ -11,6 +11,9 @@ import {
 } from "chart.js"
 import { batch, createEffect, createSignal, onCleanup, onMount } from "solid-js"
 
+import { checkbox, checkboxLabel, input } from "./style/input.css"
+import { main, section } from "./style/section.css"
+
 Chart.register(
   LineController,
   LineElement,
@@ -414,24 +417,28 @@ function App() {
   })
 
   return (
-    <>
+    <main class={main}>
       <canvas
         ref={(el) => {
           canvasRef = el
         }}
       ></canvas>
-      <div>last update: {lastUpdate()}</div>
-      <select
-        onChange={(e) => {
-          setTopic(e.target.value)
-        }}
-      >
-        <option value="temp">温湿度計</option>
-        <option value="acc">加速度センサ</option>
-        <option value="water">冷却液 温度センサ</option>
-      </select>
-      <label>
+      <section class={section}>
+        <div>last update: {lastUpdate()}</div>
+      </section>
+      <section class={section}>
+        <select
+          class={input}
+          onChange={(e) => {
+            setTopic(e.target.value)
+          }}
+        >
+          <option value="temp">温湿度計</option>
+          <option value="acc">加速度センサ</option>
+          <option value="water">冷却液 温度センサ</option>
+        </select>
         <input
+          class={input}
           onChange={(e) => {
             setLimit(parseInt(e.target.value, 10))
           }}
@@ -439,27 +446,28 @@ function App() {
           step="1"
           value="100"
         />
-        上限
-      </label>
-      <label>
-        <input
-          onChange={(e) => {
-            setStop(e.target.checked)
-          }}
-          type="checkbox"
-        />
-        ストップ
-      </label>
-      <label>
-        <input
-          onChange={(e) => {
-            setAlign(e.target.checked)
-          }}
-          type="checkbox"
-        />
-        Y軸を揃える
-      </label>
-    </>
+        <label class={checkboxLabel}>
+          <input
+            class={checkbox}
+            onChange={(e) => {
+              setStop(e.target.checked)
+            }}
+            type="checkbox"
+          />
+          ストップ
+        </label>
+        <label class={checkboxLabel}>
+          <input
+            class={checkbox}
+            onChange={(e) => {
+              setAlign(e.target.checked)
+            }}
+            type="checkbox"
+          />
+          Y軸を揃える
+        </label>
+      </section>
+    </main>
   )
 }
 
