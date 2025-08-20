@@ -139,6 +139,30 @@ static void task_uart(void* pvParameters) {
     }
 }
 
+static void task_ping(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xFrequency = pdMS_TO_TICKS(60 * 1000);
+    for (;;) {
+        mqtt_msg_t msg;
+
+        TickType_t now = xTaskGetTickCount();
+        uint32_t ms = now * portTICK_PERIOD_MS;
+
+        snprintf(msg.topic, sizeof(msg.topic), "ping");
+        snprintf(msg.payload, sizeof(msg.payload), "{\"ms\":%lu}",
+                 (unsigned long)ms);
+
+        if (xQueueSend(mqtt_queue, &msg, 0) != pdTRUE) {
+            ESP_LOGW(TAG, "MQTT queue full, dropping message");
+        } else {
+            ESP_LOGI(TAG, "Queued topic=%s, payload=%s", msg.topic,
+                     msg.payload);
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    }
+}
+
 void app_main(void) {
     gpio_reset_pin(PIN_LED);
     gpio_set_direction(PIN_LED, GPIO_MODE_OUTPUT);
@@ -178,4 +202,5 @@ void app_main(void) {
 
     xTaskCreate(task_mqtt, "mqtt", 16 * 1024, (void*)client, 5, NULL);
     xTaskCreate(task_uart, "uart", 4 * 1024, NULL, 4, NULL);
+    xTaskCreate(task_ping, "ping", 4 * 1024, NULL, 3, NULL);
 }
