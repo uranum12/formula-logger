@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mattn/go-sqlite3 v1.14.28
 )

@@ -1,47 +1,31 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/mattn/go-sqlite3"
+
+	apiHandler "formula-logger/server/api/handler"
+	"formula-logger/server/buffer"
+	"formula-logger/server/database"
+	"formula-logger/server/model"
+	mqttHandler "formula-logger/server/mqtt/handler"
 )
 
-func MessageHandler(logger *slog.Logger, db *sql.DB) func(c mqtt.Client, m mqtt.Message) {
-	return func(c mqtt.Client, m mqtt.Message) {
-		topic := m.Topic()
-		payload := string(m.Payload())
-		logger.Info("Recieve message", slog.String("topic", topic), slog.String("payload", payload))
-
-		const sql_insert = `
-			INSERT INTO mqtt_data (time, topic, payload)
-			VALUES (?, ?, ?)
-		`
-
-		now := time.Now().Format(time.RFC3339Nano)
-
-		_, err := db.Exec(sql_insert, now, topic, payload)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-func mqtt_server(db *sql.DB) {
+func mqtt_server(ch chan model.AccDB) {
 	const broker = "localhost"
 	const port = 1883
 	const client_id = "mqtt-server"
 
-	const topic = "+"
+	const topic = "acc"
 	const qos = 1
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -58,28 +42,17 @@ func mqtt_server(db *sql.DB) {
 	}
 	defer client.Disconnect(250)
 
-	token := client.Subscribe(topic, qos, MessageHandler(logger, db))
+	token := client.Subscribe(topic, qos, mqttHandler.HandlerAcc(logger, ch))
 	if token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	} else {
 		logger.Info("Subscribed", "topic", topic)
 	}
 
-	for {
-		time.Sleep(1 * time.Second)
-	}
+	select {}
 }
 
-type Item struct {
-	Time    string `json:"time"`
-	Payload string `json:"payload"`
-}
-
-type Res struct {
-	Data []Item `json:"data"`
-}
-
-func api_server(db *sql.DB) {
+func api_server(db *sqlx.DB, buf *buffer.Buf[model.AccDB]) {
 	e := echo.New()
 
 	e.Use(middleware.Logger())
@@ -89,74 +62,7 @@ func api_server(db *sql.DB) {
 		return c.File("dist/index.html")
 	})
 
-	e.GET("/:topic", func(c echo.Context) error {
-		topic := c.Param("topic")
-		limit_param := c.QueryParam("limit")
-
-		const sql_select = `
-			SELECT time, payload FROM mqtt_data
-			WHERE topic = ?
-		`
-
-		const sql_select_limit = `
-			SELECT time, payload FROM (
-				SELECT time, payload FROM mqtt_data
-				WHERE topic = ?
-				ORDER BY time DESC
-				LIMIT ?
-			)
-			ORDER BY time ASC
-		`
-
-		var data []Item
-
-		if limit_param == "" {
-			rows, err := db.Query(sql_select, topic)
-			if err != nil {
-				panic(err)
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var item Item
-
-				err = rows.Scan(&item.Time, &item.Payload)
-				if err != nil {
-					panic(err)
-				}
-
-				data = append(data, item)
-			}
-
-			return c.JSON(http.StatusOK, Res{Data: data})
-		}
-
-		limit, err := strconv.Atoi(limit_param)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "invalid limit parameter",
-			})
-		}
-
-		rows, err := db.Query(sql_select_limit, topic, limit)
-		if err != nil {
-			panic(err)
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var item Item
-
-			err = rows.Scan(&item.Time, &item.Payload)
-			if err != nil {
-				panic(err)
-			}
-
-			data = append(data, item)
-		}
-
-		return c.JSON(http.StatusOK, Res{Data: data})
-	})
+	apiHandler.SetupAcc(e, buf, db)
 
 	e.Logger.Fatal(e.Start(":1234"))
 }
@@ -173,29 +79,37 @@ func main() {
 	}
 	db_path := filepath.Join("data", now.Format(time.RFC3339)+".db")
 
-	db, err := sql.Open("sqlite3", db_path)
+	db, err := sqlx.Open("sqlite3", db_path)
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	const sql_create = `
-		CREATE TABLE IF NOT EXISTS mqtt_data (
-			id INTEGER PRIMARY KEY,
-			time TEXT,
-			topic TEXT,
-			payload TEXT
-		)
-	`
-	_, err = db.Exec(sql_create)
-	if err != nil {
-		panic(err)
-	}
+	database.InitAcc(db)
 
-	go mqtt_server(db)
-	go api_server(db)
+	buf := buffer.NewBuf[model.AccDB](1000, 100)
+	ch := make(chan model.AccDB, 100)
+
+	go mqtt_server(ch)
+	go api_server(db, buf)
+
+	t := time.NewTicker(1 * time.Second)
+	defer t.Stop()
 
 	for {
-		time.Sleep(1 * time.Second)
+		select {
+		case d := <-ch:
+			buf.Add(d)
+		case <-t.C:
+			tx := db.MustBegin()
+
+			if buf.GetBufSize() > 0 {
+				database.AddAcc(tx, buf.PopBuf())
+			}
+
+			if err := tx.Commit(); err != nil {
+				panic(err)
+			}
+		}
 	}
 }
