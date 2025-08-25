@@ -27,41 +27,31 @@ func jsonError(c echo.Context, msg string) error {
 	})
 }
 
-func SetupAPI[T any, DB any](
+func SetupAPI[TData any, TDB any](
 	e *echo.Echo,
 	topic string,
-	buf *buffer.Buf[DB],
+	buf *buffer.Buf[TData, TDB],
 	db *sqlx.DB,
 	getTime func(*sqlx.DB) []model.Time,
-	getHistory func(*sqlx.DB, int64, int64) []T,
-	extractDB func(DB) T,
+	getHistory func(*sqlx.DB, int64, int64) []TData,
 ) {
 	e.GET(fmt.Sprintf("/%s/recent", topic), func(c echo.Context) error {
-		listDB := buf.GetRing()
+		listData := buf.GetRing()
 		limitParam := c.QueryParam("limit")
 
-		var listData []T
-		if limitParam == "" {
-			listData = make([]T, len(listDB))
-			for i, v := range listDB {
-				listData[i] = extractDB(v)
-			}
-		} else {
+		if limitParam != "" {
 			limit, err := strconv.Atoi(limitParam)
 			if err != nil {
 				return jsonError(c, "invalid limit parameter")
 			}
 
-			lenListDB := len(listDB)
+			lenListDB := len(listData)
 			count := min(lenListDB, limit)
 			start := lenListDB - count
-			listData = make([]T, count)
-			for i, v := range listDB[start:] {
-				listData[i] = extractDB(v)
-			}
+			listData = listData[start:]
 		}
 
-		return c.JSON(http.StatusOK, ResData[T]{Data: listData})
+		return c.JSON(http.StatusOK, ResData[TData]{Data: listData})
 	})
 
 	e.GET(fmt.Sprintf("/%s/time", topic), func(c echo.Context) error {
@@ -89,6 +79,6 @@ func SetupAPI[T any, DB any](
 
 		listData := getHistory(db, minTime.Unix(), maxTime.Unix())
 
-		return c.JSON(http.StatusOK, ResData[T]{Data: listData})
+		return c.JSON(http.StatusOK, ResData[TData]{Data: listData})
 	})
 }

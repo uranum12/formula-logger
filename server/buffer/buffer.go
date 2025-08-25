@@ -5,49 +5,52 @@ import (
 	"sync"
 )
 
-type Buf[T any] struct {
+type Buf[TData any, TDB any] struct {
 	mu   sync.Mutex
 	ring *ring.Ring
-	buf  []T
+	buf  []TDB
 }
 
-func NewBuf[T any](ringSize, bufCap int) *Buf[T] {
-	return &Buf[T]{
+func NewBuf[TData any, TDB any](ringSize, bufCap int) *Buf[TData, TDB] {
+	return &Buf[TData, TDB]{
 		mu:   sync.Mutex{},
 		ring: ring.New(ringSize),
-		buf:  make([]T, 0, bufCap),
+		buf:  make([]TDB, 0, bufCap),
 	}
 }
 
-func (b *Buf[T]) Add(v T) {
+func (b *Buf[TData, TDB]) Add(data TData, db TDB) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.ring.Value = v
+	b.ring.Value = data
 	b.ring = b.ring.Next()
-	b.buf = append(b.buf, v)
+	b.buf = append(b.buf, db)
 }
 
-func (b *Buf[T]) GetRing() []T {
+func (b *Buf[TData, TDB]) GetRing() []TData {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	result := make([]T, 0, b.ring.Len())
+	result := make([]TData, 0, b.ring.Len())
 	b.ring.Do(func(v any) {
 		if v != nil {
-			result = append(result, v.(T))
+			result = append(result, v.(TData))
 		}
 	})
 	return result
 }
 
-func (b *Buf[T]) PopBuf() []T {
-	out := make([]T, len(b.buf))
+func (b *Buf[TData, TDB]) PopBuf() []TDB {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	out := make([]TDB, len(b.buf))
 	copy(out, b.buf)
 	b.buf = b.buf[:0]
 	return out
 }
 
-func (b *Buf[T]) GetBufSize() int {
+func (b *Buf[TData, TDB]) GetBufSize() int {
 	return len(b.buf)
 }

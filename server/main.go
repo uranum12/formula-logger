@@ -20,7 +20,7 @@ import (
 	mqttHandler "formula-logger/server/mqtt/handler"
 )
 
-func mqtt_server(ch chan model.AccDB) {
+func mqtt_server(ch chan model.Acc) {
 	const broker = "localhost"
 	const port = 1883
 	const client_id = "mqtt-server"
@@ -52,7 +52,7 @@ func mqtt_server(ch chan model.AccDB) {
 	select {}
 }
 
-func api_server(db *sqlx.DB, buf *buffer.Buf[model.AccDB]) {
+func api_server(db *sqlx.DB, buf *buffer.Buf[model.Acc, model.AccDB]) {
 	e := echo.New()
 
 	e.Use(middleware.Logger())
@@ -87,8 +87,8 @@ func main() {
 
 	database.InitAcc(db)
 
-	buf := buffer.NewBuf[model.AccDB](1000, 100)
-	ch := make(chan model.AccDB, 100)
+	buf := buffer.NewBuf[model.Acc, model.AccDB](1000, 100)
+	ch := make(chan model.Acc, 100)
 
 	go mqtt_server(ch)
 	go api_server(db, buf)
@@ -98,8 +98,12 @@ func main() {
 
 	for {
 		select {
-		case d := <-ch:
-			buf.Add(d)
+		case data := <-ch:
+			db := model.AccDB{
+				Acc:  data,
+				Time: time.Now().Unix(),
+			}
+			buf.Add(data, db)
 		case <-t.C:
 			tx := db.MustBegin()
 

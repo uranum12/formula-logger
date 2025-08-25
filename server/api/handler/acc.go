@@ -9,9 +9,6 @@ import (
 	"formula-logger/server/model"
 )
 
-func SetupAcc(e *echo.Echo, buf *buffer.Buf[model.AccDB], db *sqlx.DB) {
-	extractData := func(db model.AccDB) model.Acc {
-		return db.Acc
-	}
-	SetupAPI(e, "acc", buf, db, database.GetAccTime, database.GetAcc, extractData)
+func SetupAcc(e *echo.Echo, buf *buffer.Buf[model.Acc, model.AccDB], db *sqlx.DB) {
+	SetupAPI(e, "acc", buf, db, database.GetAccTime, database.GetAcc)
 }
