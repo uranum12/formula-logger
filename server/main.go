@@ -1,13 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,40 +14,8 @@ import (
 	"formula-logger/server/buffer"
 	"formula-logger/server/database"
 	"formula-logger/server/model"
-	mqttHandler "formula-logger/server/mqtt/handler"
+	mqtt "formula-logger/server/mqtt"
 )
-
-func mqtt_server(ch chan model.Acc) {
-	const broker = "localhost"
-	const port = 1883
-	const client_id = "mqtt-server"
-
-	const topic = "acc"
-	const qos = 1
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
-	opts.SetClientID(client_id)
-	client := mqtt.NewClient(opts)
-
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	} else {
-		logger.Info("Connected to MQTT")
-	}
-	defer client.Disconnect(250)
-
-	token := client.Subscribe(topic, qos, mqttHandler.HandlerAcc(logger, ch))
-	if token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	} else {
-		logger.Info("Subscribed", "topic", topic)
-	}
-
-	select {}
-}
 
 func api_server(db *sqlx.DB, buf *buffer.Buf[model.Acc, model.AccDB]) {
 	e := echo.New()
@@ -90,7 +55,11 @@ func main() {
 	buf := buffer.NewBuf[model.Acc, model.AccDB](1000, 100)
 	ch := make(chan model.Acc, 100)
 
-	go mqtt_server(ch)
+	client, disconnect := mqtt.Setup()
+	defer disconnect()
+
+	mqtt.AddHandler(client, "acc", ch)
+
 	go api_server(db, buf)
 
 	t := time.NewTicker(1 * time.Second)
