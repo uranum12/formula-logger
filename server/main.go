@@ -6,31 +6,14 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/mattn/go-sqlite3"
 
-	apiHandler "formula-logger/server/api/handler"
+	api "formula-logger/server/api"
 	"formula-logger/server/buffer"
 	"formula-logger/server/database"
 	"formula-logger/server/model"
 	mqtt "formula-logger/server/mqtt"
 )
-
-func api_server(db *sqlx.DB, buf *buffer.Buf[model.Acc, model.AccDB]) {
-	e := echo.New()
-
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-
-	e.GET("/", func(c echo.Context) error {
-		return c.File("dist/index.html")
-	})
-
-	apiHandler.SetupAcc(e, buf, db)
-
-	e.Logger.Fatal(e.Start(":1234"))
-}
 
 func main() {
 	loc, err := time.LoadLocation("Asia/Tokyo")
@@ -60,7 +43,10 @@ func main() {
 
 	mqtt.AddHandler(client, "acc", ch)
 
-	go api_server(db, buf)
+	e, subscribe := api.Setup()
+	go subscribe()
+
+	api.AddApi(e, "acc", buf, db, database.GetAccTime, database.GetAcc)
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()

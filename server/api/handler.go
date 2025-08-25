@@ -1,4 +1,4 @@
-package handler
+package api
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ func jsonError(c echo.Context, msg string) error {
 	})
 }
 
-func SetupAPI[TData any, TDB any](
+func AddApi[TData any, TDB any](
 	e *echo.Echo,
 	topic string,
 	buf *buffer.Buf[TData, TDB],
