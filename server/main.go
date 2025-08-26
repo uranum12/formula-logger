@@ -3,11 +3,11 @@ package main
 import (
 	"time"
 
-	api "formula-logger/server/api"
+	"formula-logger/server/api"
 	"formula-logger/server/buffer"
 	"formula-logger/server/database"
 	"formula-logger/server/model"
-	mqtt "formula-logger/server/mqtt"
+	"formula-logger/server/mqtt"
 )
 
 func main() {
@@ -55,12 +55,12 @@ func main() {
 		case <-t.C:
 			tx := db.MustBegin()
 
-			if bufAcc.GetBufSize() > 0 {
-				database.AddAcc(tx, bufAcc.PopBuf())
+			if bufAcc.BufSize() > 0 {
+				database.AddAcc(tx, bufAcc.FlashBuf())
 			}
 
-			if bufWater.GetBufSize() > 0 {
-				database.AddWater(tx, bufWater.PopBuf())
+			if bufWater.BufSize() > 0 {
+				database.AddWater(tx, bufWater.FlashBuf())
 			}
 
 			if err := tx.Commit(); err != nil {

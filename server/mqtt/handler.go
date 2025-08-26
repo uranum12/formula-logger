@@ -7,7 +7,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-func MessageHandler[T any](logger *slog.Logger, ch chan T) mqtt.MessageHandler {
+func messageHandler[T any](logger *slog.Logger, ch chan T) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		var data T
 		err := json.Unmarshal(m.Payload(), &data)
@@ -16,5 +16,6 @@ func MessageHandler[T any](logger *slog.Logger, ch chan T) mqtt.MessageHandler {
 			return
 		}
 		ch <- data
+		logger.Info("Received message", slog.String("topic", m.Topic()), slog.Any("data", data))
 	}
 }

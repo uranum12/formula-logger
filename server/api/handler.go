@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,11 +12,11 @@ import (
 	"formula-logger/server/model"
 )
 
-type ResData[T any] struct {
+type resData[T any] struct {
 	Data []T `json:"data"`
 }
 
-type ResTime struct {
+type resTime struct {
 	Time []model.Time `json:"time"`
 }
 
@@ -27,39 +26,33 @@ func jsonError(c echo.Context, msg string) error {
 	})
 }
 
-func AddApi[TData any, TDB any](
-	e *echo.Echo,
-	topic string,
-	buf *buffer.Buf[TData, TDB],
-	db *sqlx.DB,
-	getTime func(*sqlx.DB) []model.Time,
-	getHistory func(*sqlx.DB, int64, int64) []TData,
-) {
-	e.GET(fmt.Sprintf("/%s/recent", topic), func(c echo.Context) error {
-		listData := buf.GetRing()
-		limitParam := c.QueryParam("limit")
+func handlerRecent[TData any, TDB any](buf *buffer.Buf[TData, TDB]) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		listData := buf.RingSnapshot()
 
-		if limitParam != "" {
+		if limitParam := c.QueryParam("limit"); limitParam != "" {
 			limit, err := strconv.Atoi(limitParam)
 			if err != nil {
 				return jsonError(c, "invalid limit parameter")
 			}
-
-			lenListDB := len(listData)
-			count := min(lenListDB, limit)
-			start := lenListDB - count
-			listData = listData[start:]
+			if limit < len(listData) {
+				listData = listData[len(listData)-limit:]
+			}
 		}
 
-		return c.JSON(http.StatusOK, ResData[TData]{Data: listData})
-	})
+		return c.JSON(http.StatusOK, resData[TData]{Data: listData})
+	}
+}
 
-	e.GET(fmt.Sprintf("/%s/time", topic), func(c echo.Context) error {
-		listTime := getTime(db)
-		return c.JSON(http.StatusOK, ResTime{Time: listTime})
-	})
+func handlerTime(db *sqlx.DB, getTime func(*sqlx.DB) []model.Time) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		return c.JSON(http.StatusOK, resTime{Time: getTime(db)})
+	}
+}
 
-	e.GET(fmt.Sprintf("/%s/history", topic), func(c echo.Context) error {
+func handlerHistory[TData any](db *sqlx.DB,
+	getHistory func(*sqlx.DB, int64, int64) []TData) echo.HandlerFunc {
+	return func(c echo.Context) error {
 		minParam := c.QueryParam("min")
 		maxParam := c.QueryParam("max")
 
@@ -77,8 +70,7 @@ func AddApi[TData any, TDB any](
 			return jsonError(c, "invalid max format")
 		}
 
-		listData := getHistory(db, minTime.Unix(), maxTime.Unix())
-
-		return c.JSON(http.StatusOK, ResData[TData]{Data: listData})
-	})
+		data := getHistory(db, minTime.Unix(), maxTime.Unix())
+		return c.JSON(http.StatusOK, resData[TData]{Data: data})
+	}
 }

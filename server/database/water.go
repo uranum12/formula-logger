@@ -35,35 +35,17 @@ const sqlSelectDataWater = `
 `
 
 func InitWater(db *sqlx.DB) {
-	db.MustExec(sqlInitWater)
+	initTable(db, sqlInitWater)
 }
 
 func AddWater(tx *sqlx.Tx, data []model.WaterDB) {
-	_, err := tx.NamedExec(sqlAddWater, data)
-	if err != nil {
-		tx.Rollback()
-		panic(err)
-	}
+	addData(tx, sqlAddWater, data)
 }
 
 func GetWaterTime(db *sqlx.DB) []model.Time {
-	var result []model.Time
-
-	err := db.Select(&result, sqlSelectTimeWater)
-	if err != nil {
-		panic(err)
-	}
-
-	return result
+	return getTime(db, sqlSelectTimeWater)
 }
 
 func GetWater(db *sqlx.DB, timeMin, timeMax int64) []model.Water {
-	var result []model.Water
-
-	err := db.Select(&result, sqlSelectDataWater, timeMin, timeMax)
-	if err != nil {
-		panic(err)
-	}
-
-	return result
+	return getData[model.Water](db, sqlSelectDataWater, timeMin, timeMax)
 }

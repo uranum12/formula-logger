@@ -46,7 +46,7 @@ func Setup() (c *Client, disconnect func()) {
 func AddHandler[T any](c *Client, topic string, ch chan T) {
 	const qos = 1
 
-	token := c.client.Subscribe(topic, qos, MessageHandler(c.logger, ch))
+	token := c.client.Subscribe(topic, qos, messageHandler(c.logger, ch))
 	if token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}

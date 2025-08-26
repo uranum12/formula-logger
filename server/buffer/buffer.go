@@ -6,14 +6,13 @@ import (
 )
 
 type Buf[TData any, TDB any] struct {
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	ring *ring.Ring
 	buf  []TDB
 }
 
 func NewBuf[TData any, TDB any](ringSize, bufCap int) *Buf[TData, TDB] {
 	return &Buf[TData, TDB]{
-		mu:   sync.Mutex{},
 		ring: ring.New(ringSize),
 		buf:  make([]TDB, 0, bufCap),
 	}
@@ -28,9 +27,9 @@ func (b *Buf[TData, TDB]) Add(data TData, db TDB) {
 	b.buf = append(b.buf, db)
 }
 
-func (b *Buf[TData, TDB]) GetRing() []TData {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (b *Buf[TData, TDB]) RingSnapshot() []TData {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 
 	result := make([]TData, 0, b.ring.Len())
 	b.ring.Do(func(v any) {
@@ -41,7 +40,7 @@ func (b *Buf[TData, TDB]) GetRing() []TData {
 	return result
 }
 
-func (b *Buf[TData, TDB]) PopBuf() []TDB {
+func (b *Buf[TData, TDB]) FlashBuf() []TDB {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -51,6 +50,9 @@ func (b *Buf[TData, TDB]) PopBuf() []TDB {
 	return out
 }
 
-func (b *Buf[TData, TDB]) GetBufSize() int {
+func (b *Buf[TData, TDB]) BufSize() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
 	return len(b.buf)
 }

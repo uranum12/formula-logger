@@ -16,10 +16,10 @@ func Setup() *sqlx.DB {
 	}
 	now := time.Now().In(loc)
 
-	if err := os.Mkdir("data", 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll("data", 0755); err != nil {
 		panic(err)
 	}
-	db_path := filepath.Join("data", now.Format(time.RFC3339)+".db")
+	db_path := filepath.Join("data", now.Format("20060102_150405")+".db")
 
 	db, err := sqlx.Open("sqlite3", db_path)
 	if err != nil {

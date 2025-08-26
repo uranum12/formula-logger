@@ -6,7 +6,7 @@ import (
 	"formula-logger/server/model"
 )
 
-const sql_init = `
+const sqlInitAcc = `
 	CREATE TABLE IF NOT EXISTS acc_data (
 		id INTEGER PRIMARY KEY,
 		time INTEGER,
@@ -17,18 +17,18 @@ const sql_init = `
 	);
 `
 
-const sql_add = `
+const sqlAddAcc = `
 	INSERT INTO acc_data (time, usec, x, y, z)
 	VALUES (:time, :usec, :x, :y, :z)
 `
 
-const sql_select_time = `
+const sqlSelectTimeAcc = `
 	SELECT time, usec
 	FROM acc_data
 	ORDER BY time ASC
 `
 
-const sql_select_data = `
+const sqlSelectDataAcc = `
 	SELECT usec, x, y, z
 	FROM acc_data
 	WHERE time BETWEEN ? AND ?
@@ -36,35 +36,17 @@ const sql_select_data = `
 `
 
 func InitAcc(db *sqlx.DB) {
-	db.MustExec(sql_init)
+	initTable(db, sqlInitAcc)
 }
 
 func AddAcc(tx *sqlx.Tx, data []model.AccDB) {
-	_, err := tx.NamedExec(sql_add, data)
-	if err != nil {
-		tx.Rollback()
-		panic(err)
-	}
+	addData(tx, sqlAddAcc, data)
 }
 
 func GetAccTime(db *sqlx.DB) []model.Time {
-	var result []model.Time
-
-	err := db.Select(&result, sql_select_time)
-	if err != nil {
-		panic(err)
-	}
-
-	return result
+	return getTime(db, sqlSelectTimeAcc)
 }
 
 func GetAcc(db *sqlx.DB, timeMin, timeMax int64) []model.Acc {
-	var result []model.Acc
-
-	err := db.Select(&result, sql_select_data, timeMin, timeMax)
-	if err != nil {
-		panic(err)
-	}
-
-	return result
+	return getData[model.Acc](db, sqlSelectDataAcc, timeMin, timeMax)
 }
