@@ -31,6 +31,9 @@ func main() {
 	bufECU := buffer.NewBuf[model.ECU, model.ECUDB](1000, 100)
 	chECU := make(chan model.ECU, 100)
 
+	bufAF := buffer.NewBuf[model.AF, model.AFDB](1000, 100)
+	chAF := make(chan model.AF, 100)
+
 	client, disconnect := mqtt.Setup()
 	defer disconnect()
 
@@ -38,6 +41,7 @@ func main() {
 	mqtt.AddHandler(client, "water", chWater)
 	mqtt.AddHandler(client, "env", chEnv)
 	mqtt.AddHandler(client, "ecu", chECU)
+	mqtt.AddHandler(client, "af", chAF)
 
 	e, subscribe := api.Setup()
 	go subscribe()
@@ -46,6 +50,7 @@ func main() {
 	api.AddApi(e, "water", bufWater, db, database.GetWaterTime, database.GetWater)
 	api.AddApi(e, "env", bufEnv, db, database.GetEnvTime, database.GetEnv)
 	api.AddApi(e, "ecu", bufECU, db, database.GetECUTime, database.GetECU)
+	api.AddApi(e, "af", bufAF, db, database.GetAFTime, database.GetAF)
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
@@ -76,6 +81,12 @@ func main() {
 				Time: time.Now().Unix(),
 			}
 			bufECU.Add(data, db)
+		case data := <-chAF:
+			db := model.AFDB{
+				AF:   data,
+				Time: time.Now().Unix(),
+			}
+			bufAF.Add(data, db)
 		case <-t.C:
 			tx := db.MustBegin()
 
@@ -93,6 +104,10 @@ func main() {
 
 			if bufECU.BufSize() > 0 {
 				database.AddECU(tx, bufECU.FlashBuf())
+			}
+
+			if bufAF.BufSize() > 0 {
+				database.AddAF(tx, bufAF.FlashBuf())
 			}
 
 			if err := tx.Commit(); err != nil {
