@@ -9,10 +9,11 @@ set(CMAKE_CXX_STANDARD 20)
 
 pico_sdk_init()
 
-add_executable(main src/bme280.c src/main.cpp src/mcp3208.c)
+add_executable(main src/bme280.c src/bno055.c src/main.cpp src/mcp3208.c)
 target_include_directories(main PUBLIC include)
-target_link_libraries(main PRIVATE pico_cyw43_arch_none pico_stdlib
-                                   hardware_gpio hardware_spi hardware_uart)
+target_link_libraries(
+    main PRIVATE pico_cyw43_arch_none pico_stdlib hardware_gpio hardware_spi
+                 hardware_uart hardware_i2c)
 pico_enable_stdio_usb(main 0)
 pico_enable_stdio_uart(main 1)
 pico_add_extra_outputs(main)
