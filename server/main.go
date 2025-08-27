@@ -18,6 +18,8 @@ func main() {
 	database.InitWater(db)
 	database.InitEnv(db)
 	database.InitECU(db)
+	database.InitAF(db)
+	database.InitStrokeFront(db)
 
 	bufAcc := buffer.NewBuf[model.Acc, model.AccDB](1000, 100)
 	chAcc := make(chan model.Acc, 100)
@@ -34,6 +36,9 @@ func main() {
 	bufAF := buffer.NewBuf[model.AF, model.AFDB](1000, 100)
 	chAF := make(chan model.AF, 100)
 
+	bufStrokeFront := buffer.NewBuf[model.StrokeFront, model.StrokeFrontDB](1000, 100)
+	chStrokeFront := make(chan model.StrokeFront, 100)
+
 	client, disconnect := mqtt.Setup()
 	defer disconnect()
 
@@ -42,6 +47,7 @@ func main() {
 	mqtt.AddHandler(client, "env", chEnv)
 	mqtt.AddHandler(client, "ecu", chECU)
 	mqtt.AddHandler(client, "af", chAF)
+	mqtt.AddHandler(client, "stroke/front", chStrokeFront)
 
 	e, subscribe := api.Setup()
 	go subscribe()
@@ -51,6 +57,7 @@ func main() {
 	api.AddApi(e, "env", bufEnv, db, database.GetEnvTime, database.GetEnv)
 	api.AddApi(e, "ecu", bufECU, db, database.GetECUTime, database.GetECU)
 	api.AddApi(e, "af", bufAF, db, database.GetAFTime, database.GetAF)
+	api.AddApi(e, "stroke/front", bufStrokeFront, db, database.GetStrokeFrontTime, database.GetStrokeFront)
 
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
@@ -87,6 +94,12 @@ func main() {
 				Time: time.Now().Unix(),
 			}
 			bufAF.Add(data, db)
+		case data := <-chStrokeFront:
+			db := model.StrokeFrontDB{
+				StrokeFront: data,
+				Time:        time.Now().Unix(),
+			}
+			bufStrokeFront.Add(data, db)
 		case <-t.C:
 			tx := db.MustBegin()
 
@@ -108,6 +121,10 @@ func main() {
 
 			if bufAF.BufSize() > 0 {
 				database.AddAF(tx, bufAF.FlashBuf())
+			}
+
+			if bufStrokeFront.BufSize() > 0 {
+				database.AddStrokeFront(tx, bufStrokeFront.FlashBuf())
 			}
 
 			if err := tx.Commit(); err != nil {
