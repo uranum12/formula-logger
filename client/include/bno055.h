@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <hardware/i2c.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -91,20 +93,26 @@ typedef struct {
     int16_t mag_radius;
 } bno055_calib_data_t;
 
-uint8_t bno055_get_chip_id();
+typedef struct {
+    i2c_inst_t* i2c_id;
+    uint8_t addr;
+} bno055_dev_t;
+
+uint8_t bno055_get_chip_id(bno055_dev_t* dev);
 bool bno055_is_chip_id_valid(uint8_t chip_id);
 
-void bno055_set_mode(uint8_t mode);
+void bno055_set_mode(bno055_dev_t* dev, uint8_t mode);
 
-void bno055_read_accel(bno055_accel_t* acc);
-void bno055_read_gyro(bno055_gyro_t* gyro);
-void bno055_read_mag(bno055_mag_t* mag);
-void bno055_read_euler(bno055_euler_t* euler);
-void bno055_read_quaternion(bno055_quaternion_t* quaternion);
-void bno055_read_linear_accel(bno055_linear_accel_t* linear_accel);
-void bno055_read_gravity(bno055_gravity_t* gravity);
-void bno055_read_calib_status(bno055_calib_status_t* status);
-void bno055_read_calib_data(bno055_calib_data_t* data);
+void bno055_read_accel(bno055_dev_t* dev, bno055_accel_t* acc);
+void bno055_read_gyro(bno055_dev_t* dev, bno055_gyro_t* gyro);
+void bno055_read_mag(bno055_dev_t* dev, bno055_mag_t* mag);
+void bno055_read_euler(bno055_dev_t* dev, bno055_euler_t* euler);
+void bno055_read_quaternion(bno055_dev_t* dev, bno055_quaternion_t* quaternion);
+void bno055_read_linear_accel(bno055_dev_t* dev,
+                              bno055_linear_accel_t* linear_accel);
+void bno055_read_gravity(bno055_dev_t* dev, bno055_gravity_t* gravity);
+void bno055_read_calib_status(bno055_dev_t* dev, bno055_calib_status_t* status);
+void bno055_read_calib_data(bno055_dev_t* dev, bno055_calib_data_t* data);
 
 #ifdef __cplusplus
 } /* extern "C" */
