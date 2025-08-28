@@ -6,6 +6,11 @@ baud = 115200
 host = "192.168.11.10"
 port = 1883
 
+[api]
+port = 8080
+gzip_enabled = true
+gzip_level = 5
+
 [socket]
 serial = "/tmp/serial.sock"
 

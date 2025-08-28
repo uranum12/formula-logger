@@ -16,6 +16,11 @@ type Config struct {
 		Host string `toml:"host"`
 		Port int    `toml:"port"`
 	} `toml:"mqtt"`
+	API struct {
+		Port        int  `toml:"port"`
+		GzipEnabled bool `toml:"gzip_enabled"`
+		GzipLevel   int  `toml:"gzip_level"`
+	} `toml:"api"`
 	Socket struct {
 		Serial string `toml:"serial"`
 	} `toml:"socket"`
