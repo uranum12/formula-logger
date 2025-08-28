@@ -4,48 +4,46 @@
 #include <hardware/spi.h>
 #include <pico/time.h>
 
-#define SPI_ID (spi0)
-#define PIN_SPI_CS_BME280 (5)
-
-static inline void cs_select() {
+static inline void cs_select(uint8_t pin_cs) {
     asm volatile("nop \n nop \n nop");
-    gpio_put(PIN_SPI_CS_BME280, 0);
+    gpio_put(pin_cs, 0);
     asm volatile("nop \n nop \n nop");
 }
 
-static inline void cs_deselect() {
+static inline void cs_deselect(uint8_t pin_cs) {
     asm volatile("nop \n nop \n nop");
-    gpio_put(PIN_SPI_CS_BME280, 1);
+    gpio_put(pin_cs, 1);
     asm volatile("nop \n nop \n nop");
 }
 
-static void write_register(uint8_t addr, uint8_t data) {
+static void write_register(bme280_dev_t* dev, uint8_t addr, uint8_t data) {
     uint8_t buf[2];
     buf[0] = addr & 0x7F;
     buf[1] = data;
-    cs_select();
-    spi_write_blocking(SPI_ID, buf, 2);
-    cs_deselect();
+    cs_select(dev->pin_cs);
+    spi_write_blocking(dev->spi_id, buf, 2);
+    cs_deselect(dev->pin_cs);
     sleep_us(10);
 }
 
-static void read_registers(uint8_t addr, uint8_t* buf, uint16_t len) {
+static void read_registers(bme280_dev_t* dev, uint8_t addr, uint8_t* buf,
+                           uint16_t len) {
     addr |= 0x80;
-    cs_select();
-    spi_write_blocking(SPI_ID, &addr, 1);
+    cs_select(dev->pin_cs);
+    spi_write_blocking(dev->spi_id, &addr, 1);
     sleep_us(10);
-    spi_read_blocking(SPI_ID, 0, buf, len);
-    cs_deselect();
+    spi_read_blocking(dev->spi_id, 0, buf, len);
+    cs_deselect(dev->pin_cs);
     sleep_us(10);
 }
 
-void bme280_reset() {
-    write_register(0xE0, 0xB6);
+void bme280_reset(bme280_dev_t* dev) {
+    write_register(dev, 0xE0, 0xB6);
 }
 
-uint8_t bme280_get_chip_id() {
+uint8_t bme280_get_chip_id(bme280_dev_t* dev) {
     uint8_t chip_id = 0;
-    read_registers(0xD0, &chip_id, 1);
+    read_registers(dev, 0xD0, &chip_id, 1);
     return chip_id;
 }
 
@@ -53,9 +51,9 @@ bool bme280_is_chip_id_valid(uint8_t chip_id) {
     return chip_id == 0x60;
 }
 
-uint8_t bme280_get_status() {
+uint8_t bme280_get_status(bme280_dev_t* dev) {
     uint8_t status = 0;
-    read_registers(0xF3, &status, 1);
+    read_registers(dev, 0xF3, &status, 1);
     return status;
 }
 
@@ -67,9 +65,9 @@ bool bme280_is_status_im_update(uint8_t status) {
     return status & 0x01;
 }
 
-void bme280_get_calib_data(bme280_calib_data_t* calib_data) {
+void bme280_get_calib_data(bme280_dev_t* dev, bme280_calib_data_t* calib_data) {
     uint8_t buf[26];
-    read_registers(0x88, buf, 26);
+    read_registers(dev, 0x88, buf, 26);
     calib_data->dig_t1 = (uint16_t)buf[1] << 8 | buf[0];
     calib_data->dig_t2 = (int16_t)(buf[3] << 8 | buf[2]);
     calib_data->dig_t3 = (int16_t)(buf[5] << 8 | buf[4]);
@@ -83,7 +81,7 @@ void bme280_get_calib_data(bme280_calib_data_t* calib_data) {
     calib_data->dig_p8 = (int16_t)(buf[21] << 8 | buf[20]);
     calib_data->dig_p9 = (int16_t)(buf[23] << 8 | buf[22]);
     calib_data->dig_h1 = buf[25];
-    read_registers(0xE1, buf, 7);
+    read_registers(dev, 0xE1, buf, 7);
     calib_data->dig_h2 = (int16_t)(buf[1] << 8 | buf[0]);
     calib_data->dig_h3 = buf[2];
     calib_data->dig_h4 = (int16_t)(buf[3] << 4 | (buf[4] & 0x0F));
@@ -91,23 +89,23 @@ void bme280_get_calib_data(bme280_calib_data_t* calib_data) {
     calib_data->dig_h6 = (int8_t)buf[6];
 }
 
-uint8_t bme280_get_mode() {
+uint8_t bme280_get_mode(bme280_dev_t* dev) {
     uint8_t buf = 0;
-    read_registers(0xF4, &buf, 1);
+    read_registers(dev, 0xF4, &buf, 1);
     return buf & 0x03;
 }
 
-void bme280_set_mode(uint8_t mode) {
+void bme280_set_mode(bme280_dev_t* dev, uint8_t mode) {
     uint8_t buf = 0;
-    read_registers(0xF4, &buf, 1);
+    read_registers(dev, 0xF4, &buf, 1);
     buf = (buf & 0xFC) | mode;
-    write_register(0xF4, buf);
+    write_register(dev, 0xF4, buf);
 }
 
-void bme280_get_settings(bme280_settings_t* settings) {
+void bme280_get_settings(bme280_dev_t* dev, bme280_settings_t* settings) {
     uint8_t buf[3];
-    read_registers(0xF2, buf, 1);
-    read_registers(0xF4, buf + 1, 2);
+    read_registers(dev, 0xF2, buf, 1);
+    read_registers(dev, 0xF4, buf + 1, 2);
     settings->osr_h = buf[0] & 0x07;
     settings->osr_p = (buf[1] & 0x1C) >> 2;
     settings->osr_t = (buf[1] & 0xE0) >> 5;
@@ -115,16 +113,18 @@ void bme280_get_settings(bme280_settings_t* settings) {
     settings->standby_time = (buf[2] & 0xE0) >> 5;
 }
 
-void bme280_set_settings(bme280_settings_t* settings) {
-    uint8_t mode = bme280_get_mode();
-    write_register(0xF2, settings->osr_h);
-    write_register(0xF4, settings->osr_t << 5 | settings->osr_p << 2 | mode);
-    write_register(0xF5, settings->standby_time << 5 | settings->filter << 2);
+void bme280_set_settings(bme280_dev_t* dev, bme280_settings_t* settings) {
+    uint8_t mode = bme280_get_mode(dev);
+    write_register(dev, 0xF2, settings->osr_h);
+    write_register(dev, 0xF4,
+                   settings->osr_t << 5 | settings->osr_p << 2 | mode);
+    write_register(dev, 0xF5,
+                   settings->standby_time << 5 | settings->filter << 2);
 }
 
-void bme280_get_raw_data(bme280_raw_data_t* raw_data) {
+void bme280_get_raw_data(bme280_dev_t* dev, bme280_raw_data_t* raw_data) {
     uint8_t buf[8];
-    read_registers(0xF7, buf, 8);
+    read_registers(dev, 0xF7, buf, 8);
     raw_data->pressure = buf[0] << 12 | buf[1] << 4 | buf[2] >> 4;
     raw_data->temperature = buf[3] << 12 | buf[4] << 4 | buf[5] >> 4;
     raw_data->humidity = buf[6] << 8 | buf[7];

@@ -79,24 +79,29 @@ typedef struct {
     uint16_t humidity;
 } bme280_raw_data_t;
 
-void bme280_reset();
+typedef struct {
+    spi_inst_t* spi_id;
+    uint8_t pin_cs;
+} bme280_dev_t;
 
-uint8_t bme280_get_chip_id();
+void bme280_reset(bme280_dev_t* dev);
+
+uint8_t bme280_get_chip_id(bme280_dev_t* dev);
 bool bme280_is_chip_id_valid(uint8_t chip_id);
 
-uint8_t bme280_get_status();
+uint8_t bme280_get_status(bme280_dev_t* dev);
 bool bme280_is_status_measuring(uint8_t status);
 bool bme280_is_status_im_update(uint8_t status);
 
-void bme280_get_calib_data(bme280_calib_data_t* calib_data);
+void bme280_get_calib_data(bme280_dev_t* dev, bme280_calib_data_t* calib_data);
 
-uint8_t bme280_get_mode();
-void bme280_set_mode(uint8_t mode);
+uint8_t bme280_get_mode(bme280_dev_t* dev);
+void bme280_set_mode(bme280_dev_t* dev, uint8_t mode);
 
-void bme280_get_settings(bme280_settings_t* settings);
-void bme280_set_settings(bme280_settings_t* settings);
+void bme280_get_settings(bme280_dev_t* dev, bme280_settings_t* settings);
+void bme280_set_settings(bme280_dev_t* dev, bme280_settings_t* settings);
 
-void bme280_get_raw_data(bme280_raw_data_t* raw_data);
+void bme280_get_raw_data(bme280_dev_t* dev, bme280_raw_data_t* raw_data);
 
 double bme280_compensate_temperature(uint32_t raw_data,
                                      bme280_calib_data_t* calib_data,
