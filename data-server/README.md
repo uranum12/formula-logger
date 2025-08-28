@@ -55,3 +55,20 @@ journalctl -f -u logger-mqtt.service
 journalctl -f -u logger-api.service
 ```
 
+## Wi-Fi
+
+Raspberry Pi OSでは以下のコマンドでWi-Fiの設定を追加できます
+
+```sh
+sudo nmcli connection add type wifi con-name "<con-name>" ifname wlan0 ssid <ssid> wifi-sec.key-mgmt wpa-psk wifi-sec.psk <password> connection.autoconnect yes
+```
+
+以下のコマンドで設定できたかがわかります
+
+```sh
+# list all connections
+nmcli c s
+# show connection detail
+nmcli c s <con-name>
+```
+
