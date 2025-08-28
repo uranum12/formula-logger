@@ -1,0 +1,14 @@
+[serial]
+port = "/dev/serial0"
+baud = 115200
+
+[mqtt]
+host = "192.168.11.10"
+port = 1883
+
+[socket]
+serial = "/tmp/serial.sock"
+
+[csv]
+flush_interval = 1
+

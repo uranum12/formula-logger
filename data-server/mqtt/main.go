@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+
+	"formula-logger/data-server/config"
 )
 
 type MQTTData struct {
@@ -22,8 +25,10 @@ func main() {
 	slog.SetDefault(logger)
 	slog.Info("MQTT process started")
 
+	cfg := config.LoadConfig("config.toml")
+
 	opts := mqtt.NewClientOptions().
-		AddBroker("tcp://192.168.11.10:1883").
+		AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.MQTT.Host, cfg.MQTT.Port)).
 		SetClientID("go-mqtt-publisher").
 		SetKeepAlive(30 * time.Second).
 		SetPingTimeout(10 * time.Second).
@@ -42,7 +47,7 @@ func main() {
 		panic(token.Error())
 	}
 
-	socketPath := "/tmp/serial.sock"
+	socketPath := cfg.Socket.Serial
 	os.Remove(socketPath)
 	ln, err := net.Listen("unix", socketPath)
 	if err != nil {

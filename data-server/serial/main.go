@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"go.bug.st/serial"
+
+	"formula-logger/data-server/config"
 )
 
 type MQTTData struct {
@@ -78,7 +80,7 @@ func logCSV(ch <-chan CSVData, filePath string, flushInterval time.Duration) {
 }
 
 // Unixソケット送信 goroutine（トピックごとに10回に1回送信）
-func sendLoop(ch <-chan MQTTData) {
+func sendLoop(ch <-chan MQTTData, socketPath string) {
 	var conn net.Conn
 	var err error
 
@@ -86,7 +88,7 @@ func sendLoop(ch <-chan MQTTData) {
 
 	for {
 		if conn == nil {
-			conn, err = net.Dial("unix", "/tmp/serial.sock")
+			conn, err = net.Dial("unix", socketPath)
 			if err != nil {
 				time.Sleep(10 * time.Millisecond)
 				continue
@@ -155,17 +157,19 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
+	cfg := config.LoadConfig("config.toml")
+
 	filePath := prepareDataFile()
 	slog.Info("CSV output path", "path", filePath)
 
-	port := openSerialPort("/dev/serial0", 115200)
+	port := openSerialPort(cfg.Serial.Port, cfg.Serial.Baud)
 	defer port.Close()
 
 	chMQTT := make(chan MQTTData, 1000)
 	chCSV := make(chan CSVData, 1000)
 
-	go logCSV(chCSV, filePath, 1*time.Second)
-	go sendLoop(chMQTT)
+	go logCSV(chCSV, filePath, time.Duration(cfg.CSV.FlushInterval)*time.Second)
+	go sendLoop(chMQTT, cfg.Socket.Serial)
 
 	readSerial(port, chMQTT, chCSV)
 }
