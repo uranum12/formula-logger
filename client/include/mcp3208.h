@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <hardware/spi.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -26,7 +28,12 @@ typedef enum {
     mcp3208_channel_diff_ch7_ch6 = 0b0111,
 } mcp3208_channel_t;
 
-uint16_t mcp3208_get_raw(uint8_t channel);
+typedef struct {
+    spi_inst_t* spi_id;
+    uint8_t pin_cs;
+} mcp3208_dev_t;
+
+uint16_t mcp3208_get_raw(mcp3208_dev_t* dev, uint8_t channel);
 
 double calc_kxr94_2050_g(uint16_t raw);
 double calc_103jt_k(uint16_t raw);

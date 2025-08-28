@@ -7,22 +7,19 @@
 #include <hardware/spi.h>
 #include <pico/time.h>
 
-#define SPI_ID (spi0)
-#define PIN_SPI_CS_MCP3208 (6)
-
-static inline void cs_select() {
+static inline void cs_select(uint8_t pin_cs) {
     asm volatile("nop \n nop \n nop");
-    gpio_put(PIN_SPI_CS_MCP3208, 0);
+    gpio_put(pin_cs, 0);
     asm volatile("nop \n nop \n nop");
 }
 
-static inline void cs_deselect() {
+static inline void cs_deselect(uint8_t pin_cs) {
     asm volatile("nop \n nop \n nop");
-    gpio_put(PIN_SPI_CS_MCP3208, 1);
+    gpio_put(pin_cs, 1);
     asm volatile("nop \n nop \n nop");
 }
 
-uint16_t mcp3208_get_raw(uint8_t channel) {
+uint16_t mcp3208_get_raw(mcp3208_dev_t* dev, uint8_t channel) {
     uint8_t tx_buf[3] = {
         0x04 | (channel >> 2),
         (channel & 0x03) << 6,
@@ -30,9 +27,9 @@ uint16_t mcp3208_get_raw(uint8_t channel) {
     };
     uint8_t rx_buf[3];
 
-    cs_select();
-    spi_write_read_blocking(SPI_ID, tx_buf, rx_buf, 3);
-    cs_deselect();
+    cs_select(dev->pin_cs);
+    spi_write_read_blocking(dev->spi_id, tx_buf, rx_buf, 3);
+    cs_deselect(dev->pin_cs);
     sleep_us(10);
 
     return (rx_buf[1] & 0x0F) << 8 | rx_buf[2];
