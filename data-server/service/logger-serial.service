@@ -1,0 +1,17 @@
+[Unit]
+Description=Serial Data Collector
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=formula
+WorkingDirectory=/home/formula/logger
+ExecStart=/home/formula/logger/serial
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
