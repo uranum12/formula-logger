@@ -1,7 +1,6 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 #include <format>
 #include <string>
@@ -11,7 +10,6 @@
 #include <hardware/uart.h>
 #include <pico.h>
 #include <pico/binary_info.h>
-#include <pico/cyw43_arch.h>
 #include <pico/stdio.h>
 #include <pico/time.h>
 
@@ -85,6 +83,21 @@ int main() {
     stdio_init_all();
     printf("start\n");
 
+    uart_init(UART_ID, UART_BAUD);
+    gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
+    gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
+
+    for (;;) {
+        uart_puts(UART_ID, "{\"topic\":\"hello\",\"payload\":\"world\"}\n");
+        printf("puts\n");
+        sleep_ms(10 * 1000);
+    }
+}
+
+int main_() {
+    stdio_init_all();
+    printf("start\n");
+
     spi_init(SPI_ID, SPI_BAUD);
     gpio_set_function(PIN_SPI_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SPI_TX, GPIO_FUNC_SPI);
@@ -129,17 +142,17 @@ int main() {
     };
     bme280_set_settings(&settings);
 
-    if (cyw43_arch_init()) {
-        printf("Failed to initialize.\n");
-        return 1;
-    }
+    // if (cyw43_arch_init()) {
+    //     printf("Failed to initialize.\n");
+    //     return 1;
+    // }
 
-    for (int i = 0; i < 3; i++) {
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        sleep_ms(200);
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-        sleep_ms(200);
-    }
+    // for (int i = 0; i < 3; i++) {
+    //     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    //     sleep_ms(200);
+    //     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+    //     sleep_ms(200);
+    // }
 
     bool is_bme280_measure = false;
 
@@ -150,7 +163,7 @@ int main() {
             auto time_start = get_absolute_time();
             auto time_usec = to_us_since_boot(time_start);
 
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+            // cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
             bme280_raw_data_t raw_data;
             if (i % 10 == 0) {
@@ -204,9 +217,9 @@ int main() {
             msg_publish("water", json_water);
             msg_publish("acc", json_acc);
 
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+            // cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
-            cyw43_arch_poll();
+            // cyw43_arch_poll();
             tight_loop_contents();
 
             auto time_next = delayed_by_ms(time_start, 100);

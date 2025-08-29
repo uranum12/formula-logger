@@ -9,16 +9,22 @@ set(CMAKE_CXX_STANDARD 20)
 
 pico_sdk_init()
 
-add_executable(front src/front.cpp)
+add_library(uart_tx src/uart_tx.c)
+target_include_directories(uart_tx PUBLIC include)
+pico_generate_pio_header(uart_tx ${CMAKE_CURRENT_LIST_DIR}/src/uart_tx.pio)
+target_link_libraries(uart_tx PUBLIC pico_stdlib hardware_pio)
+
+add_executable(front src/bme280.c src/bno055.c src/front.cpp src/mcp3204.c)
 target_include_directories(front PRIVATE include)
-target_link_libraries(front PRIVATE pico_stdlib)
+target_link_libraries(front PRIVATE pico_stdlib pico_multicore hardware_uart
+                                    hardware_spi hardware_i2c uart_tx)
 pico_enable_stdio_usb(front 0)
 pico_enable_stdio_uart(front 1)
 pico_add_extra_outputs(front)
 
-add_executable(rear src/rear.cpp)
+add_executable(rear src/rear.cpp src/mcp3204.c src/mcp3208.c)
 target_include_directories(rear PRIVATE include)
-target_link_libraries(rear PRIVATE pico_stdlib)
+target_link_libraries(rear PRIVATE pico_stdlib pico_multicore hardware_uart hardware_spi)
 pico_enable_stdio_usb(rear 0)
 pico_enable_stdio_uart(rear 1)
 pico_add_extra_outputs(rear)
