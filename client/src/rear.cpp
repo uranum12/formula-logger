@@ -43,8 +43,10 @@ void core1_main() {
 
     while (true) {
         // エッジ検出（立ち上がりを待つ）
-        while (!gpio_get(PIN_RPM));
-        while ( gpio_get(PIN_RPM));
+        while (!gpio_get(PIN_RPM))
+            ;
+        while (gpio_get(PIN_RPM))
+            ;
 
         pulse_count++;
 
@@ -52,11 +54,9 @@ void core1_main() {
         absolute_time_t now = get_absolute_time();
         uint64_t elapsed_us = absolute_time_diff_us(last_time, now);
 
-        if (elapsed_us >= 1000000) {   // 1秒ゲート時間
-            measured_freq = (double)pulse_count * 1e6 / elapsed_us;
-            pulse_count = 0;
-            last_time = now;
-        }
+        measured_freq = (double)pulse_count * 1e6 / elapsed_us;
+        pulse_count = 0;
+        last_time = now;
     }
 }
 
