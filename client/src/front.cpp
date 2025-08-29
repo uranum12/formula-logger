@@ -218,8 +218,13 @@ int main() {
             uint16_t right_raw =
                 mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch1);
 
-            double left = calc_stroke(left_raw);
-            double right = calc_stroke(right_raw);
+            uint16_t af_raw =
+                mcp3204_get_raw(&mcp3204, mcp3204_channel_diff_ch2_ch3);
+
+            double left = left_raw * 3.3 / 4096;
+            double right = right_raw * 3.3 / 4096;
+
+            double af = af_raw * 3.3 / 4096;
 
             bno055_accel_t acc;
             bno055_gyro_t gyro;
@@ -258,8 +263,28 @@ int main() {
                             time_usec, left, right);
             msg_publish("stroke/front", json_stroke_front);
 
-            auto json_acc = std::format(R"({{"usec":{},"x":{},"y":{},"z":{}}})",
-                                        time_usec, acc.x, acc.y, acc.z);
+            auto json_af =
+                std::format(R"({{"usec":{},"af":{:.2f}}})", time_usec, af);
+            msg_publish("af", json_af);
+
+            auto json_acc = std::format(
+                "{{"
+                "\"usec\":{},"
+                "\"ax\":{},\"ay\":{},\"az\":{},"
+                "\"gx\":{},\"gy\":{},\"gz\":{},"
+                "\"mx\":{},\"my\":{},\"mz\":{},"
+                "\"h\":{},\"r\":{},\"p\":{},"
+                "\"qw\":{},\"qx\":{},\"qy\":{},\"qz\":{},"
+                "\"lx\":{},\"ly\":{},\"lz\":{},"
+                "\"x\":{},\"y\":{},\"z\":{},"
+                "\"ss\":{},\"sg\":{},\"sa\":{},\"sm\":{}"
+                "}}",
+                time_usec, acc.x, acc.y, acc.z, gyro.x, gyro.y, gyro.z, mag.x,
+                mag.y, mag.z, euler.heading, euler.roll, euler.pitch,
+                quaternion.w, quaternion.x, quaternion.y, quaternion.z,
+                linear_accel.x, linear_accel.y, linear_accel.z, gravity.x,
+                gravity.y, gravity.z, status.sys, status.gyro, status.accel,
+                status.mag);
             msg_publish("acc", json_acc);
 
             gpio_put(PIN_LED, 0);
