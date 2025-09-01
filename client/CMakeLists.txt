@@ -17,14 +17,15 @@ target_link_libraries(uart_tx PUBLIC pico_stdlib hardware_pio)
 add_executable(front src/bme280.c src/bno055.c src/front.cpp src/mcp3204.c)
 target_include_directories(front PRIVATE include)
 target_link_libraries(front PRIVATE pico_stdlib pico_multicore hardware_uart
-                                    hardware_spi hardware_i2c uart_tx)
+                                    hardware_spi hardware_i2c)
 pico_enable_stdio_usb(front 0)
 pico_enable_stdio_uart(front 1)
 pico_add_extra_outputs(front)
 
-add_executable(rear src/rear.cpp src/mcp3204.c src/mcp3208.c)
+add_executable(rear src/mcp3204.c src/mcp3208.c src/rear.cpp)
 target_include_directories(rear PRIVATE include)
-target_link_libraries(rear PRIVATE pico_stdlib pico_multicore hardware_uart hardware_spi)
+target_link_libraries(rear PRIVATE pico_stdlib pico_multicore hardware_uart
+                                   hardware_spi)
 pico_enable_stdio_usb(rear 0)
 pico_enable_stdio_uart(rear 1)
 pico_add_extra_outputs(rear)

@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include <format>
-#include <queue>
 #include <string>
 
 #include <hardware/gpio.h>
@@ -13,11 +12,14 @@
 #include <pico/mutex.h>
 #include <pico/stdio.h>
 #include <pico/time.h>
+#include <pico/util/queue.h>
 
 #include "bme280.h"
 #include "bno055.h"
 #include "mcp3204.h"
-#include "uart_tx.h"
+
+#define STR_SIZE (512)
+#define QUEUE_SIZE (64)
 
 #define SPI_ID (spi0)
 #define SPI_BAUD (1'000'000)
@@ -39,7 +41,6 @@
 #define PIN_I2C_SCL (15)
 
 #define PIN_UART_TX (20)
-
 #define PIN_UART_RX (21)
 
 #define PIN_LED (25)
@@ -51,16 +52,31 @@
 // GPIO_FUNC_I2C)); bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX,
 // GPIO_FUNC_UART)); bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
 
-mutex_t queue_mutex;
-std::queue<std::string> msg_queue;
+queue_t msg_queue;
 
-void add_msg(const std::string& msg) {
-    mutex_enter_blocking(&queue_mutex);
-    if (msg_queue.size() > 1000) {
-        msg_queue.pop();
+void add_msg(const char* msg) {
+    char buf[STR_SIZE];
+    snprintf(buf, STR_SIZE, "%s", msg);
+    if (!queue_try_add(&msg_queue, &buf)) {
+        printf("full queue\n");
     }
-    msg_queue.push(msg);
-    mutex_exit(&queue_mutex);
+}
+
+void on_uart_rx() {
+    static char buf[STR_SIZE];
+    static int index = 0;
+
+    while (uart_is_readable(UART_ID)) {
+        uint8_t ch = uart_getc(UART_ID);
+        buf[index] = ch;
+        if (ch == '\n' || index >= STR_SIZE - 1) {
+            buf[index] = '\0';
+            add_msg(buf);
+            index = 0;
+        } else {
+            ++index;
+        }
+    }
 }
 
 void msg_publish(const std::string& topic, const std::string& payload) {
@@ -75,35 +91,30 @@ void msg_publish(const std::string& topic, const std::string& payload) {
     auto msg = std::format(R"({{"topic":"{}","payload":"{}"}})", topic,
                            escaped_payload) +
                "\n";
-    printf("published %s", msg.c_str());
+    // printf("published %s", msg.c_str());
 
-    add_msg(msg);
+    add_msg(msg.c_str());
 }
 
-uart_tx_dev_t dev;
-
 void core1_main() {
+    uart_init(UART_ID, UART_BAUD);
+    uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
+    uart_set_fifo_enabled(UART_ID, true);
+    uart_set_hw_flow(UART_ID, false, false);
+    gpio_set_function(PIN_UART_TX, UART_FUNCSEL_NUM(UART_ID, PIN_UART_TX));
+    gpio_set_function(PIN_UART_RX, UART_FUNCSEL_NUM(UART_ID, PIN_UART_RX));
+
+    int uart_irq = UART_ID == uart0 ? UART0_IRQ : UART1_IRQ;
+    irq_set_exclusive_handler(uart_irq, on_uart_rx);
+    irq_set_enabled(uart_irq, true);
+    uart_set_irq_enables(UART_ID, true, false);
+
+    char str[STR_SIZE];
+
     for (;;) {
-        std::string msg;
-        if (uart_is_readable(UART_ID)) {
-            uint8_t buf;
-            do {
-                buf = uart_getc(UART_ID);
-                msg += buf;
-            } while (buf != '\n');
-            add_msg(msg);
-        }
-
-        std::vector<std::string> batch;
-        mutex_enter_blocking(&queue_mutex);
-        while (!msg_queue.empty()) {
-            batch.push_back(std::move(msg_queue.front()));
-            msg_queue.pop();
-        }
-        mutex_exit(&queue_mutex);
-
-        for (auto& m : batch) {
-            uart_tx_line(&dev, m.c_str());
+        if (queue_try_remove(&msg_queue, &str)) {
+            uart_puts(UART_ID, str);
+            uart_putc(UART_ID, '\n');
         }
     }
 }
@@ -131,15 +142,9 @@ int main() {
     gpio_pull_up(PIN_I2C_SDA);
     gpio_pull_up(PIN_I2C_SCL);
 
-    uart_init(UART_ID, UART_BAUD);
-    // gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
-    gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
-
     gpio_init(PIN_LED);
     gpio_set_dir(PIN_LED, GPIO_OUT);
     gpio_put(PIN_LED, 0);
-
-    uart_tx_init(&dev, PIN_UART_TX, UART_BAUD);
 
     bme280_dev_t bme280 = {
         .spi_id = SPI_ID,
@@ -191,7 +196,7 @@ int main() {
 
     bool is_bme280_measure = false;
 
-    mutex_init(&queue_mutex);
+    queue_init(&msg_queue, STR_SIZE, QUEUE_SIZE);
     multicore_launch_core1(core1_main);
 
     for (;;) {
