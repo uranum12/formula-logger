@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #include <memory>
@@ -62,6 +63,14 @@ public:
     }
     void addString(const char* key, const char* value) {
         cJSON_AddStringToObject(root_.get(), key, value);
+    }
+
+    void addTime(absolute_time_t time) {
+        uint64_t usec_total = to_us_since_boot(time);
+        uint32_t sec = usec_total / 1'000'000;
+        uint32_t usec = usec_total % 1'000'000;
+        addNumber("sec", sec);
+        addNumber("usec", usec);
     }
 
     bool toBuffer(char* buf, int size) const {
@@ -231,7 +240,6 @@ int main() {
             bool is_bme280_raw_set = false;
 
             auto time_start = get_absolute_time();
-            auto time_usec = to_us_since_boot(time_start);
 
             bme280_raw_data_t raw_data;
             if (i % 10 == 0) {
@@ -284,7 +292,7 @@ int main() {
                                                         &calib_data, t_fine);
 
                 auto json_env = Json();
-                json_env.addNumber("usec", time_usec);
+                json_env.addTime(time_start);
                 json_env.addNumber("temp", temp);
                 json_env.addNumber("pres", pres);
                 json_env.addNumber("hum", hum);
@@ -293,20 +301,20 @@ int main() {
             }
 
             auto json_stroke_front = Json();
-            json_stroke_front.addNumber("usec", time_usec);
+            json_stroke_front.addTime(time_start);
             json_stroke_front.addNumber("left", left);
             json_stroke_front.addNumber("right", right);
             json_stroke_front.toBuffer(buf, STR_SIZE);
             msg_publish("stroke/front", buf);
 
             auto json_af = Json();
-            json_af.addNumber("usec", time_usec);
+            json_af.addTime(time_start);
             json_af.addNumber("af", af);
             json_af.toBuffer(buf, STR_SIZE);
             msg_publish("af", buf);
 
             auto json_acc = Json();
-            json_acc.addNumber("usec", time_usec);
+            json_acc.addTime(time_start);
             json_acc.addNumber("ax", acc.x);
             json_acc.addNumber("ay", acc.y);
             json_acc.addNumber("az", acc.z);
