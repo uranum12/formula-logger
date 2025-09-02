@@ -1,7 +1,6 @@
 #include <stdio.h>
 
-#include <format>
-#include <string>
+#include <memory>
 
 #include <hardware/gpio.h>
 #include <hardware/i2c.h>
@@ -13,6 +12,8 @@
 #include <pico/stdio.h>
 #include <pico/time.h>
 #include <pico/util/queue.h>
+
+#include <cJSON.h>
 
 #include "bme280.h"
 #include "bno055.h"
@@ -52,6 +53,36 @@
 // GPIO_FUNC_I2C)); bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX,
 // GPIO_FUNC_UART)); bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
 
+class Json {
+public:
+    Json() : root_(cJSON_CreateObject(), cJSON_Delete) {}
+
+    void addNumber(const char* key, double value) {
+        cJSON_AddNumberToObject(root_.get(), key, value);
+    }
+    void addString(const char* key, const char* value) {
+        cJSON_AddStringToObject(root_.get(), key, value);
+    }
+
+    bool toBuffer(char* buf, int size) const {
+        if (!buf || size == 0) {
+            return false;
+        }
+        return cJSON_PrintPreallocated(root_.get(), buf, size, false);
+    }
+
+    cJSON* get() {
+        return root_.get();
+    }
+    const cJSON* get() const {
+        return root_.get();
+    }
+
+private:
+    using CJSONPtr = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
+    CJSONPtr root_;
+};
+
 queue_t msg_queue;
 
 void add_msg(const char* msg) {
@@ -79,21 +110,17 @@ void on_uart_rx() {
     }
 }
 
-void msg_publish(const std::string& topic, const std::string& payload) {
-    std::string escaped_payload;
-    for (char c : payload) {
-        if (c == '"') {
-            escaped_payload += "\\\"";  // convert ["] to [\"]
-        } else {
-            escaped_payload += c;
-        }
-    }
-    auto msg = std::format(R"({{"topic":"{}","payload":"{}"}})", topic,
-                           escaped_payload) +
-               "\n";
-    // printf("published %s", msg.c_str());
+void msg_publish(const char* topic, const char* payload) {
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "topic", topic);
+    cJSON_AddStringToObject(root, "payload", payload);
 
-    add_msg(msg.c_str());
+    char buf[STR_SIZE];
+    cJSON_PrintPreallocated(root, buf, STR_SIZE, false);
+
+    add_msg(buf);
+
+    cJSON_Delete(root);
 }
 
 void core1_main() {
@@ -199,6 +226,7 @@ int main() {
     queue_init(&msg_queue, STR_SIZE, QUEUE_SIZE);
     multicore_launch_core1(core1_main);
 
+    char buf[STR_SIZE];
     for (;;) {
         for (int i = 0; i < 10; i++) {
             gpio_put(PIN_LED, 1);
@@ -257,40 +285,58 @@ int main() {
                 double hum = bme280_compensate_humidity(raw_data.humidity,
                                                         &calib_data, t_fine);
 
-                auto json_env = std::format(
-                    R"({{"usec":{},"temp":{:.2f},"pres":{:.2f},"hum":{:.2f}}})",
-                    time_usec, temp, pres, hum);
-                msg_publish("env", json_env);
+                auto json_env = Json();
+                json_env.addNumber("usec", time_usec);
+                json_env.addNumber("temp", temp);
+                json_env.addNumber("pres", pres);
+                json_env.addNumber("hum", hum);
+                json_env.toBuffer(buf, STR_SIZE);
+                msg_publish("env", buf);
             }
 
-            auto json_stroke_front =
-                std::format(R"({{"usec":{},"left":{:.2f},"right":{:.2f}}})",
-                            time_usec, left, right);
-            msg_publish("stroke/front", json_stroke_front);
+            auto json_stroke_front = Json();
+            json_stroke_front.addNumber("usec", time_usec);
+            json_stroke_front.addNumber("left", left);
+            json_stroke_front.addNumber("right", right);
+            json_stroke_front.toBuffer(buf, STR_SIZE);
+            msg_publish("stroke/front", buf);
 
-            auto json_af =
-                std::format(R"({{"usec":{},"af":{:.2f}}})", time_usec, af);
-            msg_publish("af", json_af);
+            auto json_af = Json();
+            json_af.addNumber("usec", time_usec);
+            json_af.addNumber("af", af);
+            json_af.toBuffer(buf, STR_SIZE);
+            msg_publish("af", buf);
 
-            auto json_acc = std::format(
-                "{{"
-                "\"usec\":{},"
-                "\"ax\":{},\"ay\":{},\"az\":{},"
-                "\"gx\":{},\"gy\":{},\"gz\":{},"
-                "\"mx\":{},\"my\":{},\"mz\":{},"
-                "\"h\":{},\"r\":{},\"p\":{},"
-                "\"qw\":{},\"qx\":{},\"qy\":{},\"qz\":{},"
-                "\"lx\":{},\"ly\":{},\"lz\":{},"
-                "\"x\":{},\"y\":{},\"z\":{},"
-                "\"ss\":{},\"sg\":{},\"sa\":{},\"sm\":{}"
-                "}}",
-                time_usec, acc.x, acc.y, acc.z, gyro.x, gyro.y, gyro.z, mag.x,
-                mag.y, mag.z, euler.heading, euler.roll, euler.pitch,
-                quaternion.w, quaternion.x, quaternion.y, quaternion.z,
-                linear_accel.x, linear_accel.y, linear_accel.z, gravity.x,
-                gravity.y, gravity.z, status.sys, status.gyro, status.accel,
-                status.mag);
-            msg_publish("acc", json_acc);
+            auto json_acc = Json();
+            json_acc.addNumber("usec", time_usec);
+            json_acc.addNumber("ax", acc.x);
+            json_acc.addNumber("ay", acc.y);
+            json_acc.addNumber("az", acc.z);
+            json_acc.addNumber("gx", gyro.x);
+            json_acc.addNumber("gy", gyro.y);
+            json_acc.addNumber("gz", gyro.z);
+            json_acc.addNumber("mx", mag.x);
+            json_acc.addNumber("my", mag.y);
+            json_acc.addNumber("mz", mag.z);
+            json_acc.addNumber("h", euler.heading);
+            json_acc.addNumber("r", euler.roll);
+            json_acc.addNumber("p", euler.pitch);
+            json_acc.addNumber("qw", quaternion.w);
+            json_acc.addNumber("qx", quaternion.x);
+            json_acc.addNumber("qy", quaternion.y);
+            json_acc.addNumber("qz", quaternion.z);
+            json_acc.addNumber("lx", linear_accel.x);
+            json_acc.addNumber("ly", linear_accel.y);
+            json_acc.addNumber("lz", linear_accel.z);
+            json_acc.addNumber("x", gravity.x);
+            json_acc.addNumber("y", gravity.y);
+            json_acc.addNumber("z", gravity.z);
+            json_acc.addNumber("ss", status.sys);
+            json_acc.addNumber("sg", status.gyro);
+            json_acc.addNumber("sa", status.accel);
+            json_acc.addNumber("sm", status.mag);
+            json_acc.toBuffer(buf, STR_SIZE);
+            msg_publish("acc", buf);
 
             gpio_put(PIN_LED, 0);
 
