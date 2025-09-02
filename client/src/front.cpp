@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <memory>
-
 #include <hardware/gpio.h>
 #include <hardware/i2c.h>
 #include <hardware/spi.h>
@@ -19,6 +17,8 @@
 #include "bme280.h"
 #include "bno055.h"
 #include "mcp3204.h"
+
+#include "json.hpp"
 
 #define STR_SIZE (512)
 #define QUEUE_SIZE (32)
@@ -53,44 +53,6 @@
 // mcp3204")); bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL,
 // GPIO_FUNC_I2C)); bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX,
 // GPIO_FUNC_UART)); bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
-
-class Json {
-public:
-    Json() : root_(cJSON_CreateObject(), cJSON_Delete) {}
-
-    void addNumber(const char* key, double value) {
-        cJSON_AddNumberToObject(root_.get(), key, value);
-    }
-    void addString(const char* key, const char* value) {
-        cJSON_AddStringToObject(root_.get(), key, value);
-    }
-
-    void addTime(absolute_time_t time) {
-        uint64_t usec_total = to_us_since_boot(time);
-        uint32_t sec = usec_total / 1'000'000;
-        uint32_t usec = usec_total % 1'000'000;
-        addNumber("sec", sec);
-        addNumber("usec", usec);
-    }
-
-    bool toBuffer(char* buf, int size) const {
-        if (!buf || size == 0) {
-            return false;
-        }
-        return cJSON_PrintPreallocated(root_.get(), buf, size, false);
-    }
-
-    cJSON* get() {
-        return root_.get();
-    }
-    const cJSON* get() const {
-        return root_.get();
-    }
-
-private:
-    using CJSONPtr = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
-    CJSONPtr root_;
-};
 
 queue_t msg_queue;
 queue_t uart_queue;
