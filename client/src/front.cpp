@@ -20,7 +20,7 @@
 #include "mcp3204.h"
 
 #define STR_SIZE (512)
-#define QUEUE_SIZE (64)
+#define QUEUE_SIZE (32)
 
 #define SPI_ID (spi0)
 #define SPI_BAUD (1'000'000)
@@ -84,14 +84,7 @@ private:
 };
 
 queue_t msg_queue;
-
-void add_msg(const char* msg) {
-    char buf[STR_SIZE];
-    snprintf(buf, STR_SIZE, "%s", msg);
-    if (!queue_try_add(&msg_queue, &buf)) {
-        printf("full queue\n");
-    }
-}
+queue_t uart_queue;
 
 void on_uart_rx() {
     static char buf[STR_SIZE];
@@ -102,7 +95,7 @@ void on_uart_rx() {
         buf[index] = ch;
         if (ch == '\n' || index >= STR_SIZE - 1) {
             buf[index] = '\0';
-            add_msg(buf);
+            queue_try_add(&uart_queue, &buf);
             index = 0;
         } else {
             ++index;
@@ -118,7 +111,7 @@ void msg_publish(const char* topic, const char* payload) {
     char buf[STR_SIZE];
     cJSON_PrintPreallocated(root, buf, STR_SIZE, false);
 
-    add_msg(buf);
+    queue_try_add(&msg_queue, &buf);
 
     cJSON_Delete(root);
 }
@@ -140,6 +133,10 @@ void core1_main() {
 
     for (;;) {
         if (queue_try_remove(&msg_queue, &str)) {
+            uart_puts(UART_ID, str);
+            uart_putc(UART_ID, '\n');
+        }
+        if (queue_try_remove(&uart_queue, &str)) {
             uart_puts(UART_ID, str);
             uart_putc(UART_ID, '\n');
         }
@@ -224,6 +221,7 @@ int main() {
     bool is_bme280_measure = false;
 
     queue_init(&msg_queue, STR_SIZE, QUEUE_SIZE);
+    queue_init(&uart_queue, STR_SIZE, QUEUE_SIZE);
     multicore_launch_core1(core1_main);
 
     char buf[STR_SIZE];
