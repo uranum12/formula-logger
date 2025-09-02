@@ -1,8 +1,10 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <hardware/gpio.h>
 #include <hardware/i2c.h>
+#include <hardware/pio.h>
 #include <hardware/spi.h>
 #include <hardware/uart.h>
 #include <pico/binary_info.h>
@@ -17,6 +19,7 @@
 #include "bme280.h"
 #include "bno055.h"
 #include "mcp3204.h"
+#include "shift_out.h"
 
 #include "json.hpp"
 
@@ -33,11 +36,17 @@
 #define UART_ID (uart1)
 #define UART_BAUD (115'200)
 
+#define PIO_ID (pio0)
+
 #define PIN_SPI_SCK (2)
 #define PIN_SPI_TX (3)
 #define PIN_SPI_RX (4)
 #define PIN_SPI_CS_BME280 (5)
 #define PIN_SPI_CS_MCP3204 (6)
+
+#define PIN_74HC595_DATA (10)
+#define PIN_74HC595_CLOCK (11)
+#define PIN_74HC595_LATCH (12)
 
 #define PIN_I2C_SDA (14)
 #define PIN_I2C_SCL (15)
@@ -47,15 +56,92 @@
 
 #define PIN_LED (25)
 
-// bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX,
-// GPIO_FUNC_SPI)); bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for
-// bme280")); bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for
-// mcp3204")); bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL,
-// GPIO_FUNC_I2C)); bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX,
-// GPIO_FUNC_UART)); bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
+bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204 "));
+bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL, GPIO_FUNC_I2C));
+bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX, GPIO_FUNC_UART));
+bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
+
+constexpr uint8_t number_table[] = {
+    0b11111100,  // 0
+    0b01100000,  // 1
+    0b11011010,  // 2
+    0b11110010,  // 3
+    0b01100110,  // 4
+    0b10110110,  // 5
+    0b10111110,  // 6
+    0b11100000,  // 7
+    0b11111110,  // 8
+    0b11110110,  // 9
+};
+
+constexpr uint8_t meter_table[] = {
+    0b00000000,  // 0
+    0b10000000,  // 1
+    0b11000000,  // 2
+    0b11100000,  // 3
+    0b11110000,  // 4
+    0b11111000,  // 5
+    0b11111100,  // 6
+    0b11111110,  // 7
+    0b11111111,  // 8
+};
+
+constexpr int level_thresholds[] = {
+    // 0
+    0,
+    // 1
+    3000,
+    // 2
+    4000,
+    // 3
+    5000,
+    // 4
+    6000,
+    // 5
+    7000,
+    // 6
+    8000,
+    // 7
+    9000,
+    // 8
+};
+
+constexpr int number_table_len = sizeof(number_table) / sizeof(uint8_t);
+constexpr int meter_table_len = sizeof(meter_table) / sizeof(uint8_t);
+constexpr int level_thresholds_len = sizeof(level_thresholds) / sizeof(int);
+static_assert(meter_table_len == level_thresholds_len + 1,
+              "meter table and level thresholds length invalid");
+
+uint8_t convertNumber(const int num) {
+    assert(0 <= num && num < number_table_len);
+    return number_table[num];
+}
+
+uint8_t convertMeter(const int num) {
+    assert(0 <= num && num < meter_table_len);
+    return meter_table[num];
+}
+
+int calcLevel(const int rpm) {
+    for (int i = 0; i < level_thresholds_len; ++i) {
+        if (rpm <= level_thresholds[i]) {
+            return i;
+        }
+    }
+    return level_thresholds_len;
+}
 
 queue_t msg_queue;
 queue_t uart_queue;
+
+shift_out_dev_t shift_out = {
+    .pio = PIO_ID,
+    .pin_data = PIN_74HC595_DATA,
+    .pin_clock = PIN_74HC595_CLOCK,
+    .pin_latch = PIN_74HC595_LATCH,
+};
 
 void on_uart_rx() {
     static char buf[STR_SIZE];
@@ -110,6 +196,35 @@ void core1_main() {
         if (queue_try_remove(&uart_queue, &str)) {
             uart_puts(UART_ID, str);
             uart_putc(UART_ID, '\n');
+
+            cJSON* root = cJSON_Parse(str);
+
+            char* topic =
+                cJSON_GetStringValue(cJSON_GetObjectItem(root, "topic"));
+            if (strcmp(topic, "ecu") == 0) {
+                char* payload =
+                    cJSON_GetStringValue(cJSON_GetObjectItem(root, "payload"));
+                cJSON* payload_root = cJSON_Parse(payload);
+
+                double gp = cJSON_GetNumberValue(
+                    cJSON_GetObjectItem(payload_root, "gp"));
+                int rpm = cJSON_GetNumberValue(
+                    cJSON_GetObjectItem(payload_root, "rpm"));
+
+                cJSON_Delete(payload_root);
+
+                const uint8_t digits[6] = {
+                    convertNumber(rpm % 10),
+                    convertNumber(rpm / 10 % 10),
+                    convertNumber(rpm / 100 % 10),
+                    convertNumber(rpm / 1000 % 10),
+                    convertNumber(static_cast<int>(gp / 1.0)),
+                    convertMeter(calcLevel(rpm)),
+                };
+                shift_out_send(&shift_out, digits, 6);
+            }
+
+            cJSON_Delete(root);
         }
     }
 }
@@ -188,6 +303,8 @@ int main() {
 
     bno055_set_mode(&bno055, bno055_mode_ndof);
     sleep_ms(50);
+
+    shift_out_init(&shift_out);
 
     bool is_bme280_measure = false;
 
