@@ -61,6 +61,9 @@ bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204 "));
 bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL, GPIO_FUNC_I2C));
+bi_decl(bi_1pin_with_name(PIN_74HC595_DATA, "74HC595 data"));
+bi_decl(bi_1pin_with_name(PIN_74HC595_CLOCK, "74HC595 clock"));
+bi_decl(bi_1pin_with_name(PIN_74HC595_LATCH, "74HC595 latch"));
 bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX, GPIO_FUNC_UART));
 bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
 

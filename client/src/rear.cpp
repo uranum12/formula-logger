@@ -4,6 +4,7 @@
 #include <hardware/gpio.h>
 #include <hardware/spi.h>
 #include <hardware/uart.h>
+#include <pico/binary_info.h>
 #include <pico/multicore.h>
 #include <pico/stdio.h>
 #include <pico/time.h>
@@ -39,6 +40,13 @@
 #define PIN_UART_RX (21)
 
 #define PIN_LED (25)
+
+bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3208, "SPI CS for mcp3208"));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204"));
+bi_decl(bi_1pin_with_name(PIN_RPM, "RPM"));
+bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX, GPIO_FUNC_UART));
+bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
 
 volatile uint64_t last_time_us = 0;
 volatile double frequency = 0.0;
