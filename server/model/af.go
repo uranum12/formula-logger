@@ -1,9 +1,8 @@
 package model
 
 type AF struct {
-	Usec     uint64  `db:"usec" json:"usec"`
-	AF       float64 `db:"af" json:"af"`
-	Throttle float64 `db:"throttle" json:"throttle"`
+	Usec uint64  `db:"usec" json:"usec"`
+	AF   float64 `db:"af" json:"af"`
 }
 
 type AFDB struct {

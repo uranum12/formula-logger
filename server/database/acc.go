@@ -11,15 +11,57 @@ const sqlInitAcc = `
 		id INTEGER PRIMARY KEY,
 		time INTEGER,
 		usec INTEGER,
-		x REAL,
-		y REAL,
-		z REAL
+		accel_x INTEGER,
+		accel_y INTEGER,
+		accel_z INTEGER,
+		gyro_x INTEGER,
+		gyro_y INTEGER,
+		gyro_z INTEGER,
+		mag_x INTEGER,
+		mag_y INTEGER,
+		mag_z INTEGER,
+		euler_heading INTEGER,
+		euler_roll INTEGER,
+		euler_pitch INTEGER,
+		quaternion_w INTEGER,
+		quaternion_x INTEGER,
+		quaternion_y INTEGER,
+		quaternion_z INTEGER,
+		linear_accel_x INTEGER,
+		linear_accel_y INTEGER,
+		linear_accel_z INTEGER,
+		gravity_x INTEGER,
+		gravity_y INTEGER,
+		gravity_z INTEGER,
+		status_sys INTEGER,
+		status_gyro INTEGER,
+		status_accel INTEGER,
+		status_mag INTEGER
 	);
 `
 
 const sqlAddAcc = `
-	INSERT INTO acc_data (time, usec, x, y, z)
-	VALUES (:time, :usec, :x, :y, :z)
+	INSERT INTO acc_data (
+		time, usec,
+		accel_x, accel_y, accel_z,
+		gyro_x, gyro_y, gyro_z,
+		mag_x, mag_y, mag_z,
+		euler_heading, euler_roll, euler_pitch,
+		quaternion_w, quaternion_x, quaternion_y, quaternion_z,
+		linear_accel_x, linear_accel_y, linear_accel_z,
+		gravity_x, gravity_y, gravity_z,
+		status_sys, status_gyro, status_accel, status_mag
+	) VALUES (
+		:time, :usec,
+		:accel_x, :accel_y, :accel_z,
+		:gyro_x, :gyro_y, :gyro_z,
+		:mag_x, :mag_y, :mag_z,
+		:euler_heading, :euler_roll, :euler_pitch,
+		:quaternion_w, :quaternion_x, :quaternion_y, :quaternion_z,
+		:linear_accel_x, :linear_accel_y, :linear_accel_z,
+		:gravity_x, :gravity_y, :gravity_z,
+		:status_sys, :status_gyro, :status_accel, :status_mag
+	)
 `
 
 const sqlSelectTimeAcc = `
@@ -29,7 +71,16 @@ const sqlSelectTimeAcc = `
 `
 
 const sqlSelectDataAcc = `
-	SELECT usec, x, y, z
+	SELECT
+		usec,
+		accel_x, accel_y, accel_z,
+		gyro_x, gyro_y, gyro_z,
+		mag_x, mag_y, mag_z,
+		euler_heading, euler_roll, euler_pitch,
+		quaternion_w, quaternion_x, quaternion_y, quaternion_z,
+		linear_accel_x, linear_accel_y, linear_accel_z,
+		gravity_x, gravity_y, gravity_z,
+		status_sys, status_gyro, status_accel, status_mag
 	FROM acc_data
 	WHERE time BETWEEN ? AND ?
 	ORDER BY time ASC

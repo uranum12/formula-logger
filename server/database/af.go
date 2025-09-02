@@ -11,14 +11,13 @@ const sqlInitAF = `
 		id INTEGER PRIMARY KEY,
 		time INTEGER,
 		usec INTEGER,
-		af REAL,
-		throttle REAL
+		af REAL
 	);
 `
 
 const sqlAddAF = `
-	INSERT INTO af_data (time, usec, af, throttle)
-	VALUES (:time, :usec, :af, :throttle)
+	INSERT INTO af_data (time, usec, af)
+	VALUES (:time, :usec, :af)
 `
 
 const sqlSelectTimeAF = `
@@ -28,7 +27,7 @@ const sqlSelectTimeAF = `
 `
 
 const sqlSelectDataAF = `
-	SELECT usec, af, throttle
+	SELECT usec, af
 	FROM af_data
 	WHERE time BETWEEN ? AND ?
 	ORDER BY time ASC
