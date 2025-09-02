@@ -22,7 +22,8 @@ target_include_directories(shift_out PUBLIC include)
 pico_generate_pio_header(shift_out ${CMAKE_CURRENT_LIST_DIR}/src/shift_out.pio)
 target_link_libraries(shift_out PUBLIC pico_stdlib hardware_gpio hardware_pio)
 
-add_executable(front src/bme280.c src/bno055.c src/front.cpp src/mcp3204.c)
+add_executable(front src/bme280.c src/bno055.c src/front.cpp src/mcp3204.c
+                     src/meter.cpp)
 target_include_directories(front PRIVATE include)
 target_link_libraries(
     front
