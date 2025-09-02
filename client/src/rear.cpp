@@ -1,17 +1,25 @@
-#include <pico/multicore.h>
+#include <stdint.h>
 #include <stdio.h>
-
-#include <format>
-#include <string>
 
 #include <hardware/gpio.h>
 #include <hardware/spi.h>
 #include <hardware/uart.h>
+#include <pico/multicore.h>
 #include <pico/stdio.h>
 #include <pico/time.h>
+#include <pico/util/queue.h>
+
+#include <cJSON.h>
 
 #include "mcp3204.h"
 #include "mcp3208.h"
+
+#include "json.hpp"
+
+#define STR_SIZE (512)
+#define QUEUE_SIZE (32)
+
+#define ALPHA (0.2)
 
 #define SPI_ID (spi0)
 #define SPI_BAUD (1'000'000)
@@ -32,48 +40,58 @@
 
 #define PIN_LED (25)
 
-volatile double measured_freq = 0;  // core0から読めるように共有変数に
+volatile uint64_t last_time_us = 0;
+volatile double frequency = 0.0;
+
+void gpio_callback(uint gpio, uint32_t events) {
+    uint32_t now_us = to_us_since_boot(get_absolute_time());
+
+    if (last_time_us != 0) {
+        uint32_t dt_us = now_us - last_time_us;
+        double freq_new = 1000000.0f / dt_us;
+
+        frequency = ALPHA * freq_new + (1.0f - ALPHA) * frequency;
+    }
+
+    last_time_us = now_us;
+}
+
+queue_t msg_queue;
+
+void msg_publish(const char* topic, const char* payload) {
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "topic", topic);
+    cJSON_AddStringToObject(root, "payload", payload);
+
+    char buf[STR_SIZE];
+    cJSON_PrintPreallocated(root, buf, STR_SIZE, false);
+
+    queue_try_add(&msg_queue, &buf);
+
+    cJSON_Delete(root);
+}
 
 void core1_main() {
     gpio_init(PIN_RPM);
     gpio_set_dir(PIN_RPM, GPIO_IN);
+    gpio_set_irq_enabled_with_callback(PIN_RPM, GPIO_IRQ_EDGE_RISE, true,
+                                       gpio_callback);
 
-    uint32_t pulse_count = 0;
-    absolute_time_t last_time = get_absolute_time();
+    uart_init(UART_ID, UART_BAUD);
+    uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
+    uart_set_fifo_enabled(UART_ID, true);
+    uart_set_hw_flow(UART_ID, false, false);
+    gpio_set_function(PIN_UART_TX, UART_FUNCSEL_NUM(UART_ID, PIN_UART_TX));
+    gpio_set_function(PIN_UART_RX, UART_FUNCSEL_NUM(UART_ID, PIN_UART_RX));
 
-    while (true) {
-        // エッジ検出（立ち上がりを待つ）
-        while (!gpio_get(PIN_RPM))
-            ;
-        while (gpio_get(PIN_RPM))
-            ;
+    char str[STR_SIZE];
 
-        pulse_count++;
-
-        // 一定時間ごとに周波数計算
-        absolute_time_t now = get_absolute_time();
-        uint64_t elapsed_us = absolute_time_diff_us(last_time, now);
-
-        measured_freq = (double)pulse_count * 1e6 / elapsed_us;
-        pulse_count = 0;
-        last_time = now;
-    }
-}
-
-void msg_publish(const std::string& topic, const std::string& payload) {
-    std::string escaped_payload;
-    for (char c : payload) {
-        if (c == '"') {
-            escaped_payload += "\\\"";  // convert ["] to [\"]
-        } else {
-            escaped_payload += c;
+    for (;;) {
+        if (queue_try_remove(&msg_queue, &str)) {
+            uart_puts(UART_ID, str);
+            uart_putc(UART_ID, '\n');
         }
     }
-    auto msg = std::format(R"({{"topic":"{}","payload":"{}"}})", topic,
-                           escaped_payload) +
-               "\n";
-    printf("published %s\n", msg.c_str());
-    uart_puts(UART_ID, msg.c_str());
 }
 
 int main() {
@@ -111,13 +129,14 @@ int main() {
         .pin_cs = PIN_SPI_CS_MCP3204,
     };
 
+    queue_init(&msg_queue, STR_SIZE, QUEUE_SIZE);
     multicore_launch_core1(core1_main);
 
+    char buf[STR_SIZE];
     for (;;) {
         gpio_put(PIN_LED, 1);
 
         auto time_start = get_absolute_time();
-        auto time_usec = to_us_since_boot(time_start);
 
         uint16_t raw_in = mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch0);
         uint16_t raw_out =
@@ -140,16 +159,27 @@ int main() {
         double iap = raw_iap * 3.3 / 4096;
         double gp = raw_gp * 3.3 / 4096;
 
-        auto json_water = std::format(
-            R"({{"usec":{},"inlet_temp":{:.2f},"outlet_temp":{:.2f}}})",
-            time_usec, in, out);
+        if (last_time_us != 0 &&
+            (to_us_since_boot(time_start) - last_time_us) > 200'000) {
+            frequency = 0.0f;
+        }
 
-        msg_publish("water", json_water);
+        auto json_water = Json();
+        json_water.addTime(time_start);
+        json_water.addNumber("inlet_temp", in);
+        json_water.addNumber("outlet_temp", out);
+        json_water.toBuffer(buf, STR_SIZE);
+        msg_publish("water", buf);
 
-        auto json_ecu = std::format(
-            R"({{"usec":{},"ect":{:.2f},"tps":{:.2f},"iap":{:.2f},"gp":{:.2f},"rpm":{:.2f}}})",
-            time_usec, ect, tps, iap, gp, measured_freq * 120);
-        msg_publish("ecu", json_ecu);
+        auto json_ecu = Json();
+        json_ecu.addTime(time_start);
+        json_ecu.addNumber("ect", ect);
+        json_ecu.addNumber("tps", tps);
+        json_ecu.addNumber("iap", iap);
+        json_ecu.addNumber("gp", gp);
+        json_ecu.addNumber("rpm", frequency * 120);
+        json_ecu.toBuffer(buf, STR_SIZE);
+        msg_publish("ecu", buf);
 
         gpio_put(PIN_LED, 0);
 

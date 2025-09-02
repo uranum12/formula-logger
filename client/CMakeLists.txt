@@ -41,7 +41,7 @@ pico_add_extra_outputs(front)
 add_executable(rear src/mcp3204.c src/mcp3208.c src/rear.cpp)
 target_include_directories(rear PRIVATE include)
 target_link_libraries(rear PRIVATE pico_stdlib pico_multicore hardware_uart
-                                   hardware_spi)
+                                   hardware_spi cjson)
 pico_enable_stdio_usb(rear 0)
 pico_enable_stdio_uart(rear 1)
 pico_add_extra_outputs(rear)
