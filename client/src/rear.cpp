@@ -162,10 +162,10 @@ int main() {
         uint16_t raw_gp =
             mcp3208_get_raw(&mcp3208, mcp3208_channel_diff_ch4_ch5);
 
-        double ect = raw_ect * 3.3 / 4096;
-        double tps = raw_tps * 3.3 / 4096;
-        double iap = raw_iap * 3.3 / 4096;
-        double gp = raw_gp * 3.3 / 4096;
+        double ect = raw_ect * 5.0 / 4096;
+        double tps = raw_tps * 5.0 / 4096;
+        double iap = raw_iap * 5.0 / 4096;
+        double gp = raw_gp * 5.0 / 4096;
 
         if (last_time_us != 0 &&
             (to_us_since_boot(time_start) - last_time_us) > 200'000) {
