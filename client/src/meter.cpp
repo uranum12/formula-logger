@@ -1,6 +1,7 @@
 #include "meter.hpp"
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -28,6 +29,29 @@ int calcLevel(const int rpm) {
     return level_thresholds_len;
 }
 
+int mapHalfYToInt(double halfY) {
+    double y[] = {1.82, 2.288, 3.026, 3.69, 4.39, 5.37};
+    int N = sizeof(y) / sizeof(y[0]);
+    int i;
+    for (i = 0; i < N - 1; i++) {
+        double y1 = y[i] / 2.0;
+        double y2 = y[i + 1] / 2.0;
+        if (halfY >= y1 && halfY <= y2) {
+            double x = (i + 1) + (halfY - y1) / (y2 - y1);
+            int xInt = (int)round(x);
+            if (xInt < 1)
+                xInt = 1;
+            if (xInt > N)
+                xInt = N;
+            return xInt;
+        }
+    }
+    // 範囲外は端の値に丸める
+    if (halfY < y[0] / 2.0)
+        return 1;
+    return N;
+}
+
 std::optional<std::tuple<int, int>> parseUARTMessage(const char* str) {
     std::optional<std::tuple<int, int>> result;
 
@@ -46,7 +70,9 @@ std::optional<std::tuple<int, int>> parseUARTMessage(const char* str) {
 
         cJSON_Delete(payload_root);
 
-        result = std::make_tuple(static_cast<uint8_t>(gp / 1.0), rpm);
+        uint8_t gear = mapHalfYToInt(gp);
+
+        result = std::make_tuple(gear == 6 ? 0 : gear, rpm);
     }
 
     cJSON_Delete(root);
