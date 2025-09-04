@@ -15,36 +15,42 @@ import (
 )
 
 // ---------------- データ構造 ----------------
+type DataTime struct {
+	Sec  int64 `json:"sec"`
+	Usec int64 `json:"usec"`
+}
+
 type WaterData struct {
-	Sec        int64   `json:"sec"`
-	Usec       int64   `json:"usec"`
+	DataTime
 	InletTemp  float64 `json:"inlet_temp"`
 	OutletTemp float64 `json:"outlet_temp"`
 }
 
 type StrokeFrontData struct {
-	Sec   int64   `json:"sec"`
-	Usec  int64   `json:"usec"`
+	DataTime
 	Left  float64 `json:"left"`
 	Right float64 `json:"right"`
 }
 
+type DBTime struct {
+	Usec int64 `db:"usec"`
+	Time int64 `db:"time"`
+}
+
 type WaterDB struct {
-	TimestampUsec int64   `db:"timestamp_usec"`
-	Time          int64   `db:"time"`
-	InletTemp     float64 `db:"inlet_temp"`
-	OutletTemp    float64 `db:"outlet_temp"`
+	DBTime
+	InletTemp  float64 `db:"inlet_temp"`
+	OutletTemp float64 `db:"outlet_temp"`
 }
 
 type StrokeFrontDB struct {
-	TimestampUsec int64   `db:"timestamp_usec"`
-	Time          int64   `db:"time"`
-	Left          float64 `db:"left"`
-	Right         float64 `db:"right"`
+	DBTime
+	Left  float64 `db:"left"`
+	Right float64 `db:"right"`
 }
 
 type FieldValue struct {
-	Usec  int64   `db:"timestamp_usec" json:"usec"`
+	Usec  int64   `db:"usec" json:"usec"`
 	Value float64 `db:"value" json:"value"`
 }
 
@@ -62,13 +68,15 @@ func subscribeWater(client mqtt.Client, db *sqlx.DB, topic string) {
 			return
 		}
 		row := WaterDB{
-			TimestampUsec: data.Sec*1_000_000 + data.Usec,
-			Time:          time.Now().Unix(),
-			InletTemp:     data.InletTemp,
-			OutletTemp:    data.OutletTemp,
+			DBTime: DBTime{
+				Usec: data.Sec*1_000_000 + data.Usec,
+				Time: time.Now().Unix(),
+			},
+			InletTemp:  data.InletTemp,
+			OutletTemp: data.OutletTemp,
 		}
-		if _, err := db.NamedExec(`INSERT INTO water(timestamp_usec, time, inlet_temp, outlet_temp)
-			VALUES(:timestamp_usec, :time, :inlet_temp, :outlet_temp)`, row); err != nil {
+		if _, err := db.NamedExec(`INSERT INTO water(usec, time, inlet_temp, outlet_temp)
+			VALUES(:usec, :time, :inlet_temp, :outlet_temp)`, row); err != nil {
 			log.Println("DB insert error for", topic, ":", err)
 		}
 	})
@@ -82,13 +90,15 @@ func subscribeStrokeFront(client mqtt.Client, db *sqlx.DB, topic string) {
 			return
 		}
 		row := StrokeFrontDB{
-			TimestampUsec: data.Sec*1_000_000 + data.Usec,
-			Time:          time.Now().Unix(),
-			Left:          data.Left,
-			Right:         data.Right,
+			DBTime: DBTime{
+				Usec: data.Sec*1_000_000 + data.Usec,
+				Time: time.Now().Unix(),
+			},
+			Left:  data.Left,
+			Right: data.Right,
 		}
-		if _, err := db.NamedExec(`INSERT INTO stroke_front(timestamp_usec, time, left, right)
-			VALUES(:timestamp_usec, :time, :left, :right)`, row); err != nil {
+		if _, err := db.NamedExec(`INSERT INTO stroke_front(usec, time, left, right)
+			VALUES(:usec, :time, :left, :right)`, row); err != nil {
 			log.Println("DB insert error for", topic, ":", err)
 		}
 	})
@@ -103,16 +113,16 @@ func main() {
 	defer db.Close()
 
 	// ---------------- テーブル作成 ----------------
-	db.Exec(`CREATE TABLE water (
+	db.MustExec(`CREATE TABLE water (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		timestamp_usec INTEGER,
+		usec INTEGER,
 		time INTEGER,
 		inlet_temp REAL,
 		outlet_temp REAL
 	)`)
-	db.Exec(`CREATE TABLE stroke_front (
+	db.MustExec(`CREATE TABLE stroke_front (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		timestamp_usec INTEGER,
+		usec INTEGER,
 		time INTEGER,
 		left REAL,
 		right REAL
@@ -148,14 +158,14 @@ func main() {
 				continue
 			}
 			query := `
-				SELECT timestamp_usec, ` + info.Column + ` AS value
+				SELECT usec, ` + info.Column + ` AS value
 				FROM (
-					SELECT timestamp_usec, ` + info.Column + `
+					SELECT usec, ` + info.Column + `
 					FROM ` + info.Table + `
-					ORDER BY timestamp_usec DESC
+					ORDER BY usec DESC
 					LIMIT ?
 				) sub
-				ORDER BY timestamp_usec ASC
+				ORDER BY usec ASC
 			`
 			var arr []FieldValue
 			if err := db.Select(&arr, query, n); err != nil {
@@ -176,10 +186,10 @@ func main() {
 				continue
 			}
 			query := `
-				SELECT timestamp_usec, ` + info.Column + ` AS value
+				SELECT usec, ` + info.Column + ` AS value
 				FROM ` + info.Table + `
 				WHERE time BETWEEN ? AND ?
-				ORDER BY timestamp_usec ASC
+				ORDER BY usec ASC
 			`
 			var arr []FieldValue
 			if err := db.Select(&arr, query, from, to); err != nil {
