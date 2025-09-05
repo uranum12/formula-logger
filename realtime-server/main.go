@@ -20,6 +20,14 @@ type DataTime struct {
 	Usec int64 `json:"usec"`
 }
 
+func (dt DataTime) GetUsec() int64 {
+	return dt.Sec*1_000_000 + dt.Usec
+}
+
+type TimeProvider interface {
+	GetUsec() int64
+}
+
 type WaterData struct {
 	DataTime
 	InletTemp  float64 `json:"inlet_temp"`
@@ -59,47 +67,46 @@ type FieldInfo struct {
 	Column string
 }
 
-// ---------------- MQTT購読関数 ----------------
-func subscribeWater(client mqtt.Client, db *sqlx.DB, topic string) {
-	client.Subscribe(topic, 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var data WaterData
-		if err := json.Unmarshal(msg.Payload(), &data); err != nil {
-			log.Println(topic, "JSON parse error:", err)
-			return
-		}
-		row := WaterDB{
-			DBTime: DBTime{
-				Usec: data.Sec*1_000_000 + data.Usec,
-				Time: time.Now().Unix(),
-			},
-			InletTemp:  data.InletTemp,
-			OutletTemp: data.OutletTemp,
-		}
-		if _, err := db.NamedExec(`INSERT INTO water(usec, time, inlet_temp, outlet_temp)
-			VALUES(:usec, :time, :inlet_temp, :outlet_temp)`, row); err != nil {
-			log.Println("DB insert error for", topic, ":", err)
-		}
-	})
+func mapWaterData(d WaterData, t DBTime) WaterDB {
+	return WaterDB{
+		DBTime:     t,
+		InletTemp:  d.InletTemp - 273.15,
+		OutletTemp: d.OutletTemp - 273.15,
+	}
 }
 
-func subscribeStrokeFront(client mqtt.Client, db *sqlx.DB, topic string) {
-	client.Subscribe(topic, 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var data StrokeFrontData
-		if err := json.Unmarshal(msg.Payload(), &data); err != nil {
+func mapStrokeFrontData(d StrokeFrontData, t DBTime) StrokeFrontDB {
+	return StrokeFrontDB{
+		DBTime: t,
+		Left:   d.Left,
+		Right:  d.Right,
+	}
+}
+
+// ---------------- MQTT購読関数 ----------------
+func subscribeMQTT[TData TimeProvider, TDB any](
+	client mqtt.Client,
+	db *sqlx.DB,
+	topic string,
+	mapData func(TData, DBTime) TDB,
+	sqlInsert string,
+) {
+	client.Subscribe(topic, 0, func(c mqtt.Client, m mqtt.Message) {
+		var data TData
+		if err := json.Unmarshal(m.Payload(), &data); err != nil {
 			log.Println(topic, "JSON parse error:", err)
 			return
 		}
-		row := StrokeFrontDB{
-			DBTime: DBTime{
-				Usec: data.Sec*1_000_000 + data.Usec,
-				Time: time.Now().Unix(),
-			},
-			Left:  data.Left,
-			Right: data.Right,
+
+		dbt := DBTime{
+			Usec: data.GetUsec(),
+			Time: time.Now().Unix(),
 		}
-		if _, err := db.NamedExec(`INSERT INTO stroke_front(usec, time, left, right)
-			VALUES(:usec, :time, :left, :right)`, row); err != nil {
-			log.Println("DB insert error for", topic, ":", err)
+
+		row := mapData(data, dbt)
+
+		if _, err := db.NamedExec(sqlInsert, row); err != nil {
+			log.Println(topic, "DB insert error:", err)
 		}
 	})
 }
@@ -136,8 +143,22 @@ func main() {
 	}
 
 	// ---------------- MQTT購読 ----------------
-	subscribeWater(client, db, "water")
-	subscribeStrokeFront(client, db, "stroke/front")
+	subscribeMQTT(
+		client,
+		db,
+		"water",
+		mapWaterData,
+		`INSERT INTO water (usec, time, inlet_temp, outlet_temp)
+		 VALUES (:usec, :time, :inlet_temp, :outlet_temp)`,
+	)
+	subscribeMQTT(
+		client,
+		db,
+		"stroke/front",
+		mapStrokeFrontData,
+		`INSERT INTO stroke_front (usec, time, left, right)
+		VALUES (:usec, :time, :left, :right)`,
+	)
 
 	// ---------------- フィールドマップ ----------------
 	fieldMap := map[string]FieldInfo{
