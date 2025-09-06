@@ -189,6 +189,10 @@ func main() {
 		return result
 	}
 
+	e.GET("/", func(c echo.Context) error {
+		return c.File("dist/index.html")
+	})
+
 	// ---------------- 最新N件 API ----------------
 	e.GET("/latest/:n", func(c echo.Context) error {
 		n, err := strconv.Atoi(c.Param("n"))
