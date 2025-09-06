@@ -36,6 +36,7 @@ void shift_out_send(shift_out_dev_t* dev, const uint8_t* buf, size_t len) {
     for (size_t i = 0; i < len; i++) {
         pio_sm_put_blocking(dev->pio, dev->sm, buf[i]);
     }
+    sleep_ms(1);
     gpio_put(dev->pin_latch, 1);
     sleep_ms(1);
     gpio_put(dev->pin_latch, 0);
