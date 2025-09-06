@@ -142,80 +142,85 @@ int main() {
 
     char buf[STR_SIZE];
     for (;;) {
-        gpio_put(PIN_LED, 1);
+        for (int i = 0; i < 4; i++) {
+            auto time_start = get_absolute_time();
 
-        auto time_start = get_absolute_time();
+            gpio_put(PIN_LED, 1);
 
-        // water
-        uint16_t raw_in = mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch0);
-        uint16_t raw_out =
-            mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch1);
+            if (i % 2 == 0) {
+                // water (10hz)
+                uint16_t raw_in =
+                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch0);
+                uint16_t raw_out =
+                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch1);
 
-        double in = calc_103jt_k(raw_in);
-        double out = calc_103jt_k(raw_out);
+                double in = calc_103jt_k(raw_in);
+                double out = calc_103jt_k(raw_out);
 
-        auto json_water = Json();
-        json_water.addTime(get_absolute_time());
-        json_water.addNumber("inlet_temp", in);
-        json_water.addNumber("outlet_temp", out);
-        json_water.toBuffer(buf, STR_SIZE);
-        msg_publish("water", buf);
+                auto json_water = Json();
+                json_water.addTime(get_absolute_time());
+                json_water.addNumber("inlet_temp", in);
+                json_water.addNumber("outlet_temp", out);
+                json_water.toBuffer(buf, STR_SIZE);
+                msg_publish("water", buf);
 
-        // stroke/rear
-        uint16_t raw_right =
-            mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch2);
-        uint16_t raw_left =
-            mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch3);
+                // stroke/rear (10hz)
+                uint16_t raw_right =
+                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch2);
+                uint16_t raw_left =
+                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch3);
 
-        double right = raw_right * 3.3 / 4096;
-        double left = raw_left * 3.3 / 4096;
+                double right = raw_right * 3.3 / 4096;
+                double left = raw_left * 3.3 / 4096;
 
-        auto json_stroke_rear = Json();
-        json_stroke_rear.addTime(get_absolute_time());
-        json_stroke_rear.addNumber("right", right);
-        json_stroke_rear.addNumber("left", left);
-        json_stroke_rear.toBuffer(buf, STR_SIZE);
-        msg_publish("stroke/rear", buf);
+                auto json_stroke_rear = Json();
+                json_stroke_rear.addTime(get_absolute_time());
+                json_stroke_rear.addNumber("right", right);
+                json_stroke_rear.addNumber("left", left);
+                json_stroke_rear.toBuffer(buf, STR_SIZE);
+                msg_publish("stroke/rear", buf);
 
-        // ECU
-        uint16_t raw_ect =
-            mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch0);
-        uint16_t raw_tps =
-            mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch1);
-        uint16_t raw_iap =
-            mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch2);
-        uint16_t raw_gp =
-            mcp3208_get_raw(&mcp3208, mcp3208_channel_diff_ch4_ch5);
+                // ECU (10hz)
+                uint16_t raw_ect =
+                    mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch0);
+                uint16_t raw_tps =
+                    mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch1);
+                uint16_t raw_iap =
+                    mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch2);
+                uint16_t raw_gp =
+                    mcp3208_get_raw(&mcp3208, mcp3208_channel_diff_ch4_ch5);
 
-        double ect = raw_ect * 5.0 / 4096;
-        double tps = raw_tps * 5.0 / 4096;
-        double iap = raw_iap * 5.0 / 4096;
-        double gp = raw_gp * 5.0 / 4096;
+                double ect = raw_ect * 5.0 / 4096;
+                double tps = raw_tps * 5.0 / 4096;
+                double iap = raw_iap * 5.0 / 4096;
+                double gp = raw_gp * 5.0 / 4096;
 
-        auto json_ecu = Json();
-        json_ecu.addTime(get_absolute_time());
-        json_ecu.addNumber("ect", ect);
-        json_ecu.addNumber("tps", tps);
-        json_ecu.addNumber("iap", iap);
-        json_ecu.addNumber("gp", gp);
-        json_ecu.toBuffer(buf, STR_SIZE);
-        msg_publish("ecu", buf);
+                auto json_ecu = Json();
+                json_ecu.addTime(get_absolute_time());
+                json_ecu.addNumber("ect", ect);
+                json_ecu.addNumber("tps", tps);
+                json_ecu.addNumber("iap", iap);
+                json_ecu.addNumber("gp", gp);
+                json_ecu.toBuffer(buf, STR_SIZE);
+                msg_publish("ecu", buf);
+            }
 
-        // RPM
-        if (last_time_us != 0 &&
-            (to_us_since_boot(time_start) - last_time_us) > 200'000) {
-            frequency = 0.0f;
+            // RPM (20hz)
+            if (last_time_us != 0 &&
+                (to_us_since_boot(time_start) - last_time_us) > 200'000) {
+                frequency = 0.0f;
+            }
+
+            auto json_rpm = Json();
+            json_rpm.addTime(get_absolute_time());
+            json_rpm.addNumber("rpm", frequency * 120);
+            json_rpm.toBuffer(buf, STR_SIZE);
+            msg_publish("rpm", buf);
+
+            gpio_put(PIN_LED, 0);
+
+            auto time_next = delayed_by_ms(time_start, 50);
+            sleep_until(time_next);
         }
-
-        auto json_rpm = Json();
-        json_rpm.addTime(get_absolute_time());
-        json_rpm.addNumber("rpm", frequency * 120);
-        json_rpm.toBuffer(buf, STR_SIZE);
-        msg_publish("rpm", buf);
-
-        gpio_put(PIN_LED, 0);
-
-        auto time_next = delayed_by_ms(time_start, 100);
-        sleep_until(time_next);
     }
 }
