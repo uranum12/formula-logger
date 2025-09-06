@@ -241,19 +241,33 @@ int main() {
     for (;;) {
         for (int i = 0; i < 10; i++) {
             gpio_put(PIN_LED, 1);
-            bool is_bme280_raw_set = false;
 
             auto time_start = get_absolute_time();
 
-            bme280_raw_data_t raw_data;
             if (i % 10 == 0) {
                 bme280_set_mode(&bme280, bme280_mode_forced);
                 is_bme280_measure = true;
             } else if (is_bme280_measure && !bme280_is_status_measuring(
                                                 bme280_get_status(&bme280))) {
+                bme280_raw_data_t raw_data;
                 bme280_get_raw_data(&bme280, &raw_data);
-                is_bme280_raw_set = true;
                 is_bme280_measure = false;
+
+                int32_t t_fine = 0;
+                double temp = bme280_compensate_temperature(
+                    raw_data.temperature, &calib_data, &t_fine);
+                double pres = bme280_compensate_pressure(raw_data.pressure,
+                                                         &calib_data, t_fine);
+                double hum = bme280_compensate_humidity(raw_data.humidity,
+                                                        &calib_data, t_fine);
+
+                auto json_env = Json();
+                json_env.addTime(get_absolute_time());
+                json_env.addNumber("temp", temp);
+                json_env.addNumber("pres", pres);
+                json_env.addNumber("hum", hum);
+                json_env.toBuffer(buf, STR_SIZE);
+                msg_publish("env", buf);
             }
 
             uint16_t left_raw =
@@ -261,13 +275,26 @@ int main() {
             uint16_t right_raw =
                 mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch1);
 
-            uint16_t af_raw =
-                mcp3204_get_raw(&mcp3204, mcp3204_channel_diff_ch2_ch3);
-
             double left = left_raw * 3.3 / 4096;
             double right = right_raw * 3.3 / 4096;
 
+            auto json_stroke_front = Json();
+            json_stroke_front.addTime(get_absolute_time());
+            json_stroke_front.addNumber("left", left);
+            json_stroke_front.addNumber("right", right);
+            json_stroke_front.toBuffer(buf, STR_SIZE);
+            msg_publish("stroke/front", buf);
+
+            uint16_t af_raw =
+                mcp3204_get_raw(&mcp3204, mcp3204_channel_diff_ch2_ch3);
+
             double af = af_raw * 3.3 / 4096;
+
+            auto json_af = Json();
+            json_af.addTime(get_absolute_time());
+            json_af.addNumber("af", af);
+            json_af.toBuffer(buf, STR_SIZE);
+            msg_publish("af", buf);
 
             bno055_accel_t acc;
             bno055_gyro_t gyro;
@@ -286,39 +313,8 @@ int main() {
             bno055_read_gravity(&bno055, &gravity);
             bno055_read_calib_status(&bno055, &status);
 
-            if (is_bme280_raw_set) {
-                int32_t t_fine = 0;
-                double temp = bme280_compensate_temperature(
-                    raw_data.temperature, &calib_data, &t_fine);
-                double pres = bme280_compensate_pressure(raw_data.pressure,
-                                                         &calib_data, t_fine);
-                double hum = bme280_compensate_humidity(raw_data.humidity,
-                                                        &calib_data, t_fine);
-
-                auto json_env = Json();
-                json_env.addTime(time_start);
-                json_env.addNumber("temp", temp);
-                json_env.addNumber("pres", pres);
-                json_env.addNumber("hum", hum);
-                json_env.toBuffer(buf, STR_SIZE);
-                msg_publish("env", buf);
-            }
-
-            auto json_stroke_front = Json();
-            json_stroke_front.addTime(time_start);
-            json_stroke_front.addNumber("left", left);
-            json_stroke_front.addNumber("right", right);
-            json_stroke_front.toBuffer(buf, STR_SIZE);
-            msg_publish("stroke/front", buf);
-
-            auto json_af = Json();
-            json_af.addTime(time_start);
-            json_af.addNumber("af", af);
-            json_af.toBuffer(buf, STR_SIZE);
-            msg_publish("af", buf);
-
             auto json_acc = Json();
-            json_acc.addTime(time_start);
+            json_acc.addTime(get_absolute_time());
             json_acc.addNumber("ax", acc.x);
             json_acc.addNumber("ay", acc.y);
             json_acc.addNumber("az", acc.z);
