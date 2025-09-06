@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "chart.js"
 import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js"
+import ky from "ky"
 
 import { input } from "./style/input.css"
 import { main, section } from "./style/section.css"
@@ -51,10 +52,17 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch(`/latest/100?fields=${topic()}`, {
-        signal: AbortSignal.timeout(1000),
-      })
-      const json = await res.json()
+      const json = await ky
+        .get(`/latest/100`, {
+          searchParams: {
+            fields: topic(),
+          },
+          timeout: 1000,
+          retry: {
+            limit: 0,
+          },
+        })
+        .json()
       setData(json[topic()])
     } catch (err) {
       console.error("error :", err)

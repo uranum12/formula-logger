@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "chart.js": "^4.5.0",
+    "ky": "^1.10.0",
     "open-props": "^1.7.16",
     "solid-js": "^1.9.8"
   },
