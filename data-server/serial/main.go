@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"go.bug.st/serial"
@@ -22,7 +23,7 @@ type MQTTData struct {
 
 type CSVData struct {
 	MQTTData
-	Time string `json:"time"`
+	Time int64 `json:"time"`
 }
 
 // CSVファイル作成
@@ -68,7 +69,7 @@ func logCSV(ch <-chan CSVData, filePath string, flushInterval time.Duration) {
 	for {
 		select {
 		case data := <-ch:
-			record := []string{data.Time, data.Topic, data.Payload}
+			record := []string{strconv.FormatInt(data.Time, 10), data.Topic, data.Payload}
 			if err := csvWriter.Write(record); err != nil {
 				slog.Error("CSV write error", "record", record, "error", err)
 			}
@@ -124,7 +125,7 @@ func sendLoop(ch <-chan MQTTData, socketPath string) {
 }
 
 // Serial受信
-func readSerial(port serial.Port, chMQTT chan<- MQTTData, chCSV chan<- CSVData) {
+func readSerial(port serial.Port, timeStart time.Time, chMQTT chan<- MQTTData, chCSV chan<- CSVData) {
 	scanner := bufio.NewScanner(port)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -136,7 +137,7 @@ func readSerial(port serial.Port, chMQTT chan<- MQTTData, chCSV chan<- CSVData) 
 
 		chCSV <- CSVData{
 			MQTTData: data,
-			Time:     time.Now().UTC().Format(time.RFC3339),
+			Time:     time.Since(timeStart).Milliseconds(),
 		}
 
 		select {
@@ -171,5 +172,5 @@ func main() {
 	go logCSV(chCSV, filePath, time.Duration(cfg.CSV.FlushInterval)*time.Second)
 	go sendLoop(chMQTT, cfg.Socket.Serial)
 
-	readSerial(port, chMQTT, chCSV)
+	readSerial(port, time.Now(), chMQTT, chCSV)
 }
