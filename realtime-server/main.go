@@ -83,6 +83,13 @@ func main() {
 		left REAL,
 		right REAL
 	)`)
+	db.Exec(`CREATE TABLE stroke_rear (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		usec INTEGER,
+		time INTEGER,
+		left REAL,
+		right REAL
+	)`)
 
 	// ---------------- MQTT設定 ----------------
 	opts := mqtt.NewClientOptions().AddBroker("tcp://localhost:1883").SetClientID("go_mqtt_client")
@@ -106,6 +113,13 @@ func main() {
 		models.MapStrokeFrontData,
 		"stroke_front",
 	)
+	subscribeMQTT(
+		client,
+		db,
+		"stroke/rear",
+		models.MapStrokeRearData,
+		"stroke_rear",
+	)
 
 	// ---------------- フィールドマップ ----------------
 	fieldMap := map[string]FieldInfo{
@@ -113,6 +127,8 @@ func main() {
 		"water/outlet_temp":  {"water", "outlet_temp"},
 		"stroke/front/left":  {"stroke_front", "left"},
 		"stroke/front/right": {"stroke_front", "right"},
+		"stroke/rear/left":   {"stroke_rear", "left"},
+		"stroke/rear/right":  {"stroke_rear", "right"},
 	}
 
 	e := echo.New()
