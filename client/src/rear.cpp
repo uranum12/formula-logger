@@ -12,7 +12,6 @@
 
 #include <cJSON.h>
 
-#include "mcp3204.h"
 #include "mcp3208.h"
 
 #include "json.hpp"
@@ -31,8 +30,8 @@
 #define PIN_SPI_SCK (2)
 #define PIN_SPI_TX (3)
 #define PIN_SPI_RX (4)
-#define PIN_SPI_CS_MCP3208 (5)
-#define PIN_SPI_CS_MCP3204 (6)
+#define PIN_SPI_CS_MCP3208_ECU (5)
+#define PIN_SPI_CS_MCP3208_WATER_STROKE (6)
 
 #define PIN_RPM (10)
 
@@ -42,8 +41,10 @@
 #define PIN_LED (25)
 
 bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
-bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3208, "SPI CS for mcp3208"));
-bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204"));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3208_ECU,
+                          "SPI CS for mcp3208 for ECU"));
+bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3208_WATER_STROKE,
+                          "SPI CS for mcp3208 for water and stroke"));
 bi_decl(bi_1pin_with_name(PIN_RPM, "RPM"));
 bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX, GPIO_FUNC_UART));
 bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
@@ -111,13 +112,13 @@ int main() {
     gpio_set_function(PIN_SPI_TX, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SPI_RX, GPIO_FUNC_SPI);
 
-    gpio_init(PIN_SPI_CS_MCP3208);
-    gpio_set_dir(PIN_SPI_CS_MCP3208, GPIO_OUT);
-    gpio_put(PIN_SPI_CS_MCP3208, 1);
+    gpio_init(PIN_SPI_CS_MCP3208_ECU);
+    gpio_set_dir(PIN_SPI_CS_MCP3208_ECU, GPIO_OUT);
+    gpio_put(PIN_SPI_CS_MCP3208_ECU, 1);
 
-    gpio_init(PIN_SPI_CS_MCP3204);
-    gpio_set_dir(PIN_SPI_CS_MCP3204, GPIO_OUT);
-    gpio_put(PIN_SPI_CS_MCP3204, 1);
+    gpio_init(PIN_SPI_CS_MCP3208_WATER_STROKE);
+    gpio_set_dir(PIN_SPI_CS_MCP3208_WATER_STROKE, GPIO_OUT);
+    gpio_put(PIN_SPI_CS_MCP3208_WATER_STROKE, 1);
 
     uart_init(UART_ID, UART_BAUD);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
@@ -127,14 +128,14 @@ int main() {
     gpio_set_dir(PIN_LED, GPIO_OUT);
     gpio_put(PIN_LED, 0);
 
-    mcp3208_dev_t mcp3208 = {
+    mcp3208_dev_t mcp3208_ecu = {
         .spi_id = SPI_ID,
-        .pin_cs = PIN_SPI_CS_MCP3208,
+        .pin_cs = PIN_SPI_CS_MCP3208_ECU,
     };
 
-    mcp3204_dev_t mcp3204 = {
+    mcp3208_dev_t mcp3208_water_stroke = {
         .spi_id = SPI_ID,
-        .pin_cs = PIN_SPI_CS_MCP3204,
+        .pin_cs = PIN_SPI_CS_MCP3208_WATER_STROKE,
     };
 
     queue_init(&msg_queue, STR_SIZE, QUEUE_SIZE);
@@ -149,10 +150,10 @@ int main() {
 
             if (i % 2 == 0) {
                 // water (10hz)
-                uint16_t raw_in =
-                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch0);
-                uint16_t raw_out =
-                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch1);
+                uint16_t raw_in = mcp3208_get_raw(&mcp3208_water_stroke,
+                                                  mcp3208_channel_single_ch0);
+                uint16_t raw_out = mcp3208_get_raw(&mcp3208_water_stroke,
+                                                   mcp3208_channel_single_ch1);
 
                 double in = calc_103jt_k(raw_in);
                 double out = calc_103jt_k(raw_out);
@@ -165,10 +166,10 @@ int main() {
                 msg_publish("water", buf);
 
                 // stroke/rear (10hz)
-                uint16_t raw_right =
-                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch2);
-                uint16_t raw_left =
-                    mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch3);
+                uint16_t raw_right = mcp3208_get_raw(
+                    &mcp3208_water_stroke, mcp3208_channel_single_ch2);
+                uint16_t raw_left = mcp3208_get_raw(&mcp3208_water_stroke,
+                                                    mcp3208_channel_single_ch3);
 
                 double right = raw_right * 3.3 / 4096;
                 double left = raw_left * 3.3 / 4096;
@@ -182,13 +183,13 @@ int main() {
 
                 // ECU (10hz)
                 uint16_t raw_ect =
-                    mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch0);
+                    mcp3208_get_raw(&mcp3208_ecu, mcp3208_channel_single_ch0);
                 uint16_t raw_tps =
-                    mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch1);
+                    mcp3208_get_raw(&mcp3208_ecu, mcp3208_channel_single_ch1);
                 uint16_t raw_iap =
-                    mcp3208_get_raw(&mcp3208, mcp3208_channel_single_ch2);
+                    mcp3208_get_raw(&mcp3208_ecu, mcp3208_channel_single_ch2);
                 uint16_t raw_gp =
-                    mcp3208_get_raw(&mcp3208, mcp3208_channel_diff_ch4_ch5);
+                    mcp3208_get_raw(&mcp3208_ecu, mcp3208_channel_diff_ch4_ch5);
 
                 double ect = raw_ect * 5.0 / 4096;
                 double tps = raw_tps * 5.0 / 4096;
