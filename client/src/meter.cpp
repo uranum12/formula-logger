@@ -29,27 +29,16 @@ int calcLevel(const int rpm) {
     return level_thresholds_len;
 }
 
-int mapHalfYToInt(double halfY) {
-    double y[] = {1.82, 2.288, 3.026, 3.69, 4.39, 5.37};
-    int N = sizeof(y) / sizeof(y[0]);
-    int i;
-    for (i = 0; i < N - 1; i++) {
-        double y1 = y[i] / 2.0;
-        double y2 = y[i + 1] / 2.0;
-        if (halfY >= y1 && halfY <= y2) {
-            double x = (i + 1) + (halfY - y1) / (y2 - y1);
-            int xInt = (int)round(x);
-            if (xInt < 1)
-                xInt = 1;
-            if (xInt > N)
-                xInt = N;
-            return xInt;
+int calc_gear(double v) {
+    double v_ref[] = {0.0, 0.88, 1.10, 1.46, 1.77, 2.09, 2.38, 3.0};
+    for (int i = 0; i < 6; i++) {
+        double low = (v_ref[i] + v_ref[i + 1]) / 2.0;
+        double high = (v_ref[i + 1] + v_ref[i + 2]) / 2.0;
+        if (low <= v && v < high) {
+            return i + 1;
         }
     }
-    // 範囲外は端の値に丸める
-    if (halfY < y[0] / 2.0)
-        return 1;
-    return N;
+    return -1;
 }
 
 std::optional<std::tuple<int, int>> parseUARTMessage(const char* str) {
@@ -70,9 +59,9 @@ std::optional<std::tuple<int, int>> parseUARTMessage(const char* str) {
 
         cJSON_Delete(payload_root);
 
-        uint8_t gear = mapHalfYToInt(gp);
+        uint8_t gear = calc_gear(gp);
 
-        result = std::make_tuple(gear == 6 ? 0 : gear, rpm);
+        result = std::make_tuple(gear, rpm);
     }
 
     cJSON_Delete(root);
