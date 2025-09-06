@@ -73,7 +73,8 @@ uint8_t convertGear(const int num);
 uint8_t convertMeter(const int num);
 int calcLevel(const int rpm);
 
-std::optional<std::tuple<int, int>> parseUARTMessage(const char* str);
+std::optional<int> parseGear(const char* str);
+std::optional<int> parseRPM(const char* str);
 void fillBuf(int gear, int rpm, uint8_t* buf);
 
 #endif /* end of include guard: METER_HPP */

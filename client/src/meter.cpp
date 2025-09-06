@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include <optional>
-#include <tuple>
 
 #include <cJSON.h>
 
@@ -46,8 +45,8 @@ int calc_gear(double v) {
     return -1;
 }
 
-std::optional<std::tuple<int, int>> parseUARTMessage(const char* str) {
-    std::optional<std::tuple<int, int>> result;
+std::optional<int> parseGear(const char* str) {
+    std::optional<int> gear;
 
     cJSON* root = cJSON_Parse(str);
 
@@ -59,19 +58,35 @@ std::optional<std::tuple<int, int>> parseUARTMessage(const char* str) {
 
         double gp =
             cJSON_GetNumberValue(cJSON_GetObjectItem(payload_root, "gp"));
-        int rpm =
-            cJSON_GetNumberValue(cJSON_GetObjectItem(payload_root, "rpm"));
+        gear = calc_gear(gp);
 
         cJSON_Delete(payload_root);
-
-        uint8_t gear = calc_gear(gp);
-
-        result = std::make_tuple(gear, rpm);
     }
 
     cJSON_Delete(root);
 
-    return result;
+    return gear;
+}
+
+std::optional<int> parseRPM(const char* str) {
+    std::optional<int> rpm;
+
+    cJSON* root = cJSON_Parse(str);
+
+    char* topic = cJSON_GetStringValue(cJSON_GetObjectItem(root, "topic"));
+    if (strcmp(topic, "rpm") == 0) {
+        char* payload =
+            cJSON_GetStringValue(cJSON_GetObjectItem(root, "payload"));
+        cJSON* payload_root = cJSON_Parse(payload);
+
+        rpm = cJSON_GetNumberValue(cJSON_GetObjectItem(payload_root, "rpm"));
+
+        cJSON_Delete(payload_root);
+    }
+
+    cJSON_Delete(root);
+
+    return rpm;
 }
 
 void fillBuf(int gear, int rpm, uint8_t* buf) {

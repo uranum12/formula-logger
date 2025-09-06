@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 #include <hardware/gpio.h>
 #include <hardware/i2c.h>
@@ -121,6 +120,8 @@ void core1_main() {
     uart_set_irq_enables(UART_ID, true, false);
 
     char str[STR_SIZE];
+    int gear, rpm;
+    bool meter_update = false;
 
     for (;;) {
         if (queue_try_remove(&msg_queue, &str)) {
@@ -131,12 +132,23 @@ void core1_main() {
             uart_puts(UART_ID, str);
             uart_putc(UART_ID, '\n');
 
-            auto ecu_data = parseUARTMessage(str);
-            if (ecu_data) {
-                auto [gear, rpm] = *ecu_data;
+            auto gear_opt = parseGear(str);
+            if (gear_opt) {
+                gear = *gear_opt;
+                meter_update = true;
+            }
+
+            auto rpm_opt = parseRPM(str);
+            if (rpm_opt) {
+                rpm = *rpm_opt;
+                meter_update = true;
+            }
+
+            if (meter_update) {
                 uint8_t buf[6];
                 fillBuf(gear, rpm, buf);
                 shift_out_send(&shift_out, buf, 6);
+                meter_update = false;
             }
         }
     }
