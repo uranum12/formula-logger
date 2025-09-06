@@ -15,6 +15,11 @@ uint8_t convertNumber(const int num) {
     return number_table[num];
 }
 
+uint8_t convertGear(const int num) {
+    assert(0 <= num && num < gear_table_len);
+    return gear_table[num];
+}
+
 uint8_t convertMeter(const int num) {
     assert(0 <= num && num < meter_table_len);
     return meter_table[num];
@@ -78,6 +83,6 @@ void fillBuf(int gear, int rpm, uint8_t* buf) {
     buf[1] = convertNumber((rpm / 10) % 10);
     buf[2] = convertNumber((rpm / 100) % 10);
     buf[3] = convertNumber((rpm / 1000) % 10);
-    buf[4] = convertNumber(gear);
+    buf[4] = convertGear(gear);
     buf[5] = convertMeter(calcLevel(rpm));
 }

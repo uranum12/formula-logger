@@ -19,6 +19,16 @@ constexpr uint8_t number_table[] = {
     0b11110110,  // 9
 };
 
+constexpr uint8_t gear_table[] = {
+    0b00000000,  // 0
+    0b01100000,  // 1
+    0b11011010,  // 2
+    0b11110010,  // 3
+    0b01100110,  // 4
+    0b10110110,  // 5
+    0b00000010,  // N (-)
+};
+
 constexpr uint8_t meter_table[] = {
     0b00000000,  // 0
     0b10000000,  // 1
@@ -52,12 +62,14 @@ constexpr int level_thresholds[] = {
 };
 
 constexpr int number_table_len = sizeof(number_table) / sizeof(uint8_t);
+constexpr int gear_table_len = sizeof(gear_table) / sizeof(uint8_t);
 constexpr int meter_table_len = sizeof(meter_table) / sizeof(uint8_t);
 constexpr int level_thresholds_len = sizeof(level_thresholds) / sizeof(int);
 static_assert(meter_table_len == level_thresholds_len + 1,
               "meter table and level thresholds length invalid");
 
 uint8_t convertNumber(const int num);
+uint8_t convertGear(const int num);
 uint8_t convertMeter(const int num);
 int calcLevel(const int rpm);
 
