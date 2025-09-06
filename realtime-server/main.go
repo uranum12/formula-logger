@@ -12,50 +12,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	_ "github.com/mattn/go-sqlite3"
+
+	"formula-logger/realtime-server/models"
 )
 
 // ---------------- データ構造 ----------------
-type DataTime struct {
-	Sec  int64 `json:"sec"`
-	Usec int64 `json:"usec"`
-}
-
-func (dt DataTime) GetUsec() int64 {
-	return dt.Sec*1_000_000 + dt.Usec
-}
-
-type TimeProvider interface {
-	GetUsec() int64
-}
-
-type WaterData struct {
-	DataTime
-	InletTemp  float64 `json:"inlet_temp"`
-	OutletTemp float64 `json:"outlet_temp"`
-}
-
-type StrokeFrontData struct {
-	DataTime
-	Left  float64 `json:"left"`
-	Right float64 `json:"right"`
-}
-
-type DBTime struct {
-	Usec int64 `db:"usec"`
-	Time int64 `db:"time"`
-}
-
-type WaterDB struct {
-	DBTime
-	InletTemp  float64 `db:"inlet_temp"`
-	OutletTemp float64 `db:"outlet_temp"`
-}
-
-type StrokeFrontDB struct {
-	DBTime
-	Left  float64 `db:"left"`
-	Right float64 `db:"right"`
-}
 
 type FieldValue struct {
 	Usec  int64   `db:"usec" json:"usec"`
@@ -67,28 +28,12 @@ type FieldInfo struct {
 	Column string
 }
 
-func mapWaterData(d WaterData, t DBTime) WaterDB {
-	return WaterDB{
-		DBTime:     t,
-		InletTemp:  d.InletTemp - 273.15,
-		OutletTemp: d.OutletTemp - 273.15,
-	}
-}
-
-func mapStrokeFrontData(d StrokeFrontData, t DBTime) StrokeFrontDB {
-	return StrokeFrontDB{
-		DBTime: t,
-		Left:   d.Left,
-		Right:  d.Right,
-	}
-}
-
 // ---------------- MQTT購読関数 ----------------
-func subscribeMQTT[TData TimeProvider, TDB any](
+func subscribeMQTT[TData models.TimeProvider, TDB any](
 	client mqtt.Client,
 	db *sqlx.DB,
 	topic string,
-	mapData func(TData, DBTime) TDB,
+	mapData func(TData, models.DBTime) TDB,
 	sqlInsert string,
 ) {
 	client.Subscribe(topic, 0, func(c mqtt.Client, m mqtt.Message) {
@@ -98,7 +43,7 @@ func subscribeMQTT[TData TimeProvider, TDB any](
 			return
 		}
 
-		dbt := DBTime{
+		dbt := models.DBTime{
 			Usec: data.GetUsec(),
 			Time: time.Now().Unix(),
 		}
@@ -147,7 +92,7 @@ func main() {
 		client,
 		db,
 		"water",
-		mapWaterData,
+		models.MapWaterData,
 		`INSERT INTO water (usec, time, inlet_temp, outlet_temp)
 		 VALUES (:usec, :time, :inlet_temp, :outlet_temp)`,
 	)
@@ -155,7 +100,7 @@ func main() {
 		client,
 		db,
 		"stroke/front",
-		mapStrokeFrontData,
+		models.MapStrokeFrontData,
 		`INSERT INTO stroke_front (usec, time, left, right)
 		VALUES (:usec, :time, :left, :right)`,
 	)
