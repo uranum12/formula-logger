@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -8,8 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/doug-martin/goqu/v9"
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	_ "github.com/mattn/go-sqlite3"
 
@@ -31,10 +33,10 @@ type FieldInfo struct {
 // ---------------- MQTT購読関数 ----------------
 func subscribeMQTT[TData models.TimeProvider, TDB any](
 	client mqtt.Client,
-	db *sqlx.DB,
+	db *goqu.Database,
 	topic string,
 	mapData func(TData, models.DBTime) TDB,
-	sqlInsert string,
+	tableName string,
 ) {
 	client.Subscribe(topic, 0, func(c mqtt.Client, m mqtt.Message) {
 		var data TData
@@ -49,8 +51,8 @@ func subscribeMQTT[TData models.TimeProvider, TDB any](
 		}
 
 		row := mapData(data, dbt)
-
-		if _, err := db.NamedExec(sqlInsert, row); err != nil {
+		ds := db.Insert(tableName).Rows(row)
+		if _, err := ds.Executor().Exec(); err != nil {
 			log.Println(topic, "DB insert error:", err)
 		}
 	})
@@ -58,21 +60,23 @@ func subscribeMQTT[TData models.TimeProvider, TDB any](
 
 // ---------------- メイン ----------------
 func main() {
-	db, err := sqlx.Open("sqlite3", ":memory:")
+	sqlDB, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer sqlDB.Close()
+
+	db := goqu.New("sqlite3", sqlDB)
 
 	// ---------------- テーブル作成 ----------------
-	db.MustExec(`CREATE TABLE water (
+	db.Exec(`CREATE TABLE water (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		usec INTEGER,
 		time INTEGER,
 		inlet_temp REAL,
 		outlet_temp REAL
 	)`)
-	db.MustExec(`CREATE TABLE stroke_front (
+	db.Exec(`CREATE TABLE stroke_front (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		usec INTEGER,
 		time INTEGER,
@@ -93,16 +97,14 @@ func main() {
 		db,
 		"water",
 		models.MapWaterData,
-		`INSERT INTO water (usec, time, inlet_temp, outlet_temp)
-		 VALUES (:usec, :time, :inlet_temp, :outlet_temp)`,
+		"water",
 	)
 	subscribeMQTT(
 		client,
 		db,
 		"stroke/front",
 		models.MapStrokeFrontData,
-		`INSERT INTO stroke_front (usec, time, left, right)
-		VALUES (:usec, :time, :left, :right)`,
+		"stroke_front",
 	)
 
 	// ---------------- フィールドマップ ----------------
@@ -123,18 +125,21 @@ func main() {
 			if !ok {
 				continue
 			}
-			query := `
-				SELECT usec, ` + info.Column + ` AS value
-				FROM (
-					SELECT usec, ` + info.Column + `
-					FROM ` + info.Table + `
-					ORDER BY usec DESC
-					LIMIT ?
-				) sub
-				ORDER BY usec ASC
-			`
+			sub := db.From(goqu.I(info.Table)).
+				Select(
+					goqu.C("usec"),
+					goqu.C(info.Column),
+				).
+				Order(goqu.C("usec").Desc()).
+				Limit(uint(n))
+			ds := db.From(sub.As("sub")).
+				Select(
+					goqu.C("usec"),
+					goqu.C(info.Column).As("value"),
+				).
+				Order(goqu.C("usec").Asc())
 			var arr []FieldValue
-			if err := db.Select(&arr, query, n); err != nil {
+			if err := ds.ScanStructs(&arr); err != nil {
 				log.Println("query error for", f, ":", err)
 				continue
 			}
@@ -151,14 +156,15 @@ func main() {
 			if !ok {
 				continue
 			}
-			query := `
-				SELECT usec, ` + info.Column + ` AS value
-				FROM ` + info.Table + `
-				WHERE time BETWEEN ? AND ?
-				ORDER BY usec ASC
-			`
+			ds := db.From(info.Table).
+				Select(
+					goqu.C("usec"),
+					goqu.C(info.Column).As("value"),
+				).
+				Where(goqu.C("time").Between(goqu.Range(from, to))).
+				Order(goqu.C("usec").Asc())
 			var arr []FieldValue
-			if err := db.Select(&arr, query, from, to); err != nil {
+			if err := ds.ScanStructs(&arr); err != nil {
 				log.Println("query error for", f, ":", err)
 				continue
 			}
@@ -168,7 +174,7 @@ func main() {
 	}
 
 	// ---------------- 最新N件 API ----------------
-	e.GET("/fields/latest/:n", func(c echo.Context) error {
+	e.GET("/latest/:n", func(c echo.Context) error {
 		n, err := strconv.Atoi(c.Param("n"))
 		if err != nil || n <= 0 {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid n"})
@@ -183,7 +189,7 @@ func main() {
 	})
 
 	// ---------------- 期間指定 API ----------------
-	e.GET("/fields/range", func(c echo.Context) error {
+	e.GET("/range", func(c echo.Context) error {
 		fromStr := c.QueryParam("from")
 		toStr := c.QueryParam("to")
 		if fromStr == "" || toStr == "" {
