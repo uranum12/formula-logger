@@ -91,6 +91,15 @@ func main() {
 		left REAL,
 		right REAL
 	)`)
+	db.Exec(`CREATE TABLE ecu (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		usec INTEGER,
+		time INTEGER,
+		ect REAL,
+		tps REAL,
+		iap REAL,
+		gp REAL
+	)`)
 
 	// ---------------- MQTT設定 ----------------
 	opts := mqtt.NewClientOptions().AddBroker("tcp://localhost:1883").SetClientID("go_mqtt_client")
@@ -121,6 +130,13 @@ func main() {
 		models.MapStrokeRearData,
 		"stroke_rear",
 	)
+	subscribeMQTT(
+		client,
+		db,
+		"ecu",
+		models.MapECUData,
+		"ecu",
+	)
 
 	// ---------------- フィールドマップ ----------------
 	fieldMap := map[string]FieldInfo{
@@ -130,6 +146,10 @@ func main() {
 		"stroke/front/right": {"stroke_front", "right"},
 		"stroke/rear/left":   {"stroke_rear", "left"},
 		"stroke/rear/right":  {"stroke_rear", "right"},
+		"ecu/ect":            {"ecu", "ect"},
+		"ecu/tps":            {"ecu", "tps"},
+		"ecu/iap":            {"ecu", "iap"},
+		"ecu/gp":             {"ecu", "gp"},
 	}
 
 	e := echo.New()
