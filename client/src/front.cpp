@@ -149,12 +149,14 @@ void core1_main() {
 
             auto rpm_opt = parseRPM(str);
             if (rpm_opt) {
-                if (gpio_get(PIN_TOGGLE) == 0 && rpm_count % 4 == 0) {
-                    rpm = static_cast<int>(*rpm_opt * 1.1);
+                if (gpio_get(PIN_TOGGLE) == 0) {
+                    if (rpm_count % 4 == 0) {
+                        rpm = static_cast<int>(*rpm_opt * 1.1);
+                    }
+                    ++rpm_count;
                 } else {
                     rpm = *rpm_opt;
                 }
-                ++rpm_count;
                 meter_update = true;
             }
 
