@@ -1,4 +1,4 @@
-import type { ChartConfiguration } from "chart.js"
+import type { ChartConfiguration, LinearScaleOptions } from "chart.js"
 import {
   Chart,
   Legend,
@@ -28,6 +28,7 @@ Chart.register(
 type Topic = {
   name: string
   value: string
+  label: string
 }
 
 type DataItem = {
@@ -36,10 +37,22 @@ type DataItem = {
 }
 
 const topics: Topic[] = [
-  { name: "ストロークセンサ左前", value: "stroke/front/left" },
-  { name: "ストロークセンサ右前", value: "stroke/front/right" },
-  { name: "水温センサ 流入口", value: "water/inlet_temp" },
-  { name: "水温センサ 流出口", value: "water/outlet_temp" },
+  {
+    name: "ストロークセンサ左前",
+    value: "stroke/front/left",
+    label: "front/left (V)",
+  },
+  {
+    name: "ストロークセンサ右前",
+    value: "stroke/front/right",
+    label: "front/right (V)",
+  },
+  { name: "水温センサ 流入口", value: "water/inlet_temp", label: "inlet (C)" },
+  {
+    name: "水温センサ 流出口",
+    value: "water/outlet_temp",
+    label: "outlet (C)",
+  },
 ]
 
 function App() {
@@ -149,6 +162,20 @@ function App() {
     }))
 
     chart.update()
+  })
+
+  createEffect(() => {
+    if (!chart) return
+
+    const scales = chart.options.scales as Record<
+      "y0" | "y1" | "y2",
+      LinearScaleOptions
+    >
+
+    const y0Label: string = topics.find((e) => e.value === topic())?.label!
+
+    chart.data.datasets[0].label = y0Label
+    scales.y0.title.text = y0Label
   })
 
   return (
