@@ -15,6 +15,7 @@ import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js"
 import * as v from "valibot"
 
 import { input } from "./style/input.css"
+import { button } from "./style/button.css"
 import { main, section } from "./style/section.css"
 
 Chart.register(
@@ -310,7 +311,9 @@ function App() {
               />
             )}
           </Field>
-          <button type="submit">反映</button>
+          <button type="submit" class={button}>
+            Submit
+          </button>
         </Form>
       </section>
     </main>
