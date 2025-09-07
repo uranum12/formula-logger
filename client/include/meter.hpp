@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include <optional>
-#include <tuple>
 
 constexpr uint8_t number_table[] = {
     0b11111100,  // 0

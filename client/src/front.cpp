@@ -51,6 +51,8 @@
 #define PIN_I2C_SDA (14)
 #define PIN_I2C_SCL (15)
 
+#define PIN_TOGGLE (16)
+
 #define PIN_UART_TX (20)
 #define PIN_UART_RX (21)
 
@@ -63,6 +65,7 @@ bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL, GPIO_FUNC_I2C));
 bi_decl(bi_1pin_with_name(PIN_74HC595_DATA, "74HC595 data"));
 bi_decl(bi_1pin_with_name(PIN_74HC595_CLOCK, "74HC595 clock"));
 bi_decl(bi_1pin_with_name(PIN_74HC595_LATCH, "74HC595 latch"));
+bi_decl(bi_1pin_with_name(PIN_TOGGLE, "Toggle switch"));
 bi_decl(bi_2pins_with_func(PIN_UART_TX, PIN_UART_RX, GPIO_FUNC_UART));
 bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
 
@@ -119,6 +122,10 @@ void core1_main() {
     irq_set_enabled(uart_irq, true);
     uart_set_irq_enables(UART_ID, true, false);
 
+    gpio_init(PIN_TOGGLE);
+    gpio_set_dir(PIN_TOGGLE, GPIO_IN);
+    gpio_pull_up(PIN_TOGGLE);
+
     char str[STR_SIZE];
     int gear, rpm;
     bool meter_update = false;
@@ -140,7 +147,11 @@ void core1_main() {
 
             auto rpm_opt = parseRPM(str);
             if (rpm_opt) {
-                rpm = *rpm_opt;
+                if (gpio_get(PIN_TOGGLE) == 0) {
+                    rpm = static_cast<int>(*rpm_opt * 1.1);
+                } else {
+                    rpm = *rpm_opt;
+                }
                 meter_update = true;
             }
 
