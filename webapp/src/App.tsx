@@ -73,6 +73,7 @@ function App() {
 
   const [, { Form, Field }] = createForm<FormType>()
 
+  const [limit, setLimit] = createSignal<number>()
   const [topic0, setTopic0] = createSignal<Topic>()
   const [topic1, setTopic1] = createSignal<Topic>()
   const [topic2, setTopic2] = createSignal<Topic>()
@@ -91,7 +92,7 @@ function App() {
 
     try {
       const json = await ky
-        .get(`/latest/100`, {
+        .get(`/latest/${limit() ?? 100}`, {
           searchParams: { fields: fields.join(",") },
           timeout: 1000,
           retry: {
@@ -266,6 +267,7 @@ function App() {
             setTopic0(topics.find((t) => values.topic0 === t.value))
             setTopic1(topics.find((t) => values.topic1 === t.value))
             setTopic2(topics.find((t) => values.topic2 === t.value))
+            setLimit(values.limit)
           }}
         >
           <Field name="topic0" type="string">
@@ -296,6 +298,16 @@ function App() {
                   {(item) => <option value={item.value}>{item.name}</option>}
                 </For>
               </select>
+            )}
+          </Field>
+          <Field name="limit" type="number">
+            {(field, props) => (
+              <input
+                {...props}
+                class={input}
+                type="number"
+                value={field.value ?? 100}
+              />
             )}
           </Field>
           <button type="submit">反映</button>
