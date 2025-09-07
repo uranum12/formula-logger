@@ -15,7 +15,7 @@
 
 #include <cJSON.h>
 
-#include "bme280.h"
+// #include "bme280.h"
 #include "bno055.h"
 #include "mcp3204.h"
 #include "shift_out.h"
@@ -41,7 +41,7 @@
 #define PIN_SPI_SCK (2)
 #define PIN_SPI_TX (3)
 #define PIN_SPI_RX (4)
-#define PIN_SPI_CS_BME280 (5)
+// #define PIN_SPI_CS_BME280 (5)
 #define PIN_SPI_CS_MCP3204 (6)
 
 #define PIN_74HC595_DATA (10)
@@ -59,7 +59,7 @@
 #define PIN_LED (25)
 
 bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
-bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
+// bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204 "));
 bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL, GPIO_FUNC_I2C));
 bi_decl(bi_1pin_with_name(PIN_74HC595_DATA, "74HC595 data"));
@@ -174,9 +174,9 @@ int main() {
     gpio_set_function(PIN_SPI_TX, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SPI_RX, GPIO_FUNC_SPI);
 
-    gpio_init(PIN_SPI_CS_BME280);
-    gpio_set_dir(PIN_SPI_CS_BME280, GPIO_OUT);
-    gpio_put(PIN_SPI_CS_BME280, 1);
+    // gpio_init(PIN_SPI_CS_BME280);
+    // gpio_set_dir(PIN_SPI_CS_BME280, GPIO_OUT);
+    // gpio_put(PIN_SPI_CS_BME280, 1);
 
     gpio_init(PIN_SPI_CS_MCP3204);
     gpio_set_dir(PIN_SPI_CS_MCP3204, GPIO_OUT);
@@ -192,33 +192,33 @@ int main() {
     gpio_set_dir(PIN_LED, GPIO_OUT);
     gpio_put(PIN_LED, 0);
 
-    bme280_dev_t bme280 = {
-        .spi_id = SPI_ID,
-        .pin_cs = PIN_SPI_CS_BME280,
-    };
-
-    bme280_reset(&bme280);
-
-    do {
-        sleep_ms(1);
-    } while (bme280_is_status_im_update(bme280_get_status(&bme280)));
-
-    if (uint8_t chip_id = bme280_get_chip_id(&bme280);
-        bme280_is_chip_id_valid(chip_id)) {
-        printf("chip_id: %#x is valid\n", chip_id);
-    }
-
-    bme280_calib_data_t calib_data;
-    bme280_get_calib_data(&bme280, &calib_data);
-
-    bme280_settings_t settings = {
-        .osr_t = bme280_osr_x4,
-        .osr_p = bme280_osr_x4,
-        .osr_h = bme280_osr_x4,
-        .filter = bme280_filter_x2,
-        .standby_time = bme280_standby_time_1000ms,
-    };
-    bme280_set_settings(&bme280, &settings);
+    // bme280_dev_t bme280 = {
+    //     .spi_id = SPI_ID,
+    //     .pin_cs = PIN_SPI_CS_BME280,
+    // };
+    //
+    // bme280_reset(&bme280);
+    //
+    // do {
+    //     sleep_ms(1);
+    // } while (bme280_is_status_im_update(bme280_get_status(&bme280)));
+    //
+    // if (uint8_t chip_id = bme280_get_chip_id(&bme280);
+    //     bme280_is_chip_id_valid(chip_id)) {
+    //     printf("chip_id: %#x is valid\n", chip_id);
+    // }
+    //
+    // bme280_calib_data_t calib_data;
+    // bme280_get_calib_data(&bme280, &calib_data);
+    //
+    // bme280_settings_t settings = {
+    //     .osr_t = bme280_osr_x4,
+    //     .osr_p = bme280_osr_x4,
+    //     .osr_h = bme280_osr_x4,
+    //     .filter = bme280_filter_x2,
+    //     .standby_time = bme280_standby_time_1000ms,
+    // };
+    // bme280_set_settings(&bme280, &settings);
 
     mcp3204_dev_t mcp3204 = {
         .spi_id = SPI_ID,
@@ -242,7 +242,7 @@ int main() {
 
     shift_out_init(&shift_out);
 
-    bool is_bme280_measure = false;
+    // bool is_bme280_measure = false;
 
     queue_init(&msg_queue, STR_SIZE, QUEUE_SIZE);
     queue_init(&uart_queue, STR_SIZE, QUEUE_SIZE);
@@ -255,31 +255,33 @@ int main() {
 
             auto time_start = get_absolute_time();
 
-            if (i % 10 == 0) {
-                bme280_set_mode(&bme280, bme280_mode_forced);
-                is_bme280_measure = true;
-            } else if (is_bme280_measure && !bme280_is_status_measuring(
-                                                bme280_get_status(&bme280))) {
-                bme280_raw_data_t raw_data;
-                bme280_get_raw_data(&bme280, &raw_data);
-                is_bme280_measure = false;
-
-                int32_t t_fine = 0;
-                double temp = bme280_compensate_temperature(
-                    raw_data.temperature, &calib_data, &t_fine);
-                double pres = bme280_compensate_pressure(raw_data.pressure,
-                                                         &calib_data, t_fine);
-                double hum = bme280_compensate_humidity(raw_data.humidity,
-                                                        &calib_data, t_fine);
-
-                auto json_env = Json();
-                json_env.addTime(get_absolute_time());
-                json_env.addNumber("temp", temp);
-                json_env.addNumber("pres", pres);
-                json_env.addNumber("hum", hum);
-                json_env.toBuffer(buf, STR_SIZE);
-                msg_publish("env", buf);
-            }
+            // if (i % 10 == 0) {
+            //     bme280_set_mode(&bme280, bme280_mode_forced);
+            //     is_bme280_measure = true;
+            // } else if (is_bme280_measure && !bme280_is_status_measuring(
+            //                                     bme280_get_status(&bme280)))
+            //                                     {
+            //     bme280_raw_data_t raw_data;
+            //     bme280_get_raw_data(&bme280, &raw_data);
+            //     is_bme280_measure = false;
+            //
+            //     int32_t t_fine = 0;
+            //     double temp = bme280_compensate_temperature(
+            //         raw_data.temperature, &calib_data, &t_fine);
+            //     double pres = bme280_compensate_pressure(raw_data.pressure,
+            //                                              &calib_data,
+            //                                              t_fine);
+            //     double hum = bme280_compensate_humidity(raw_data.humidity,
+            //                                             &calib_data, t_fine);
+            //
+            //     auto json_env = Json();
+            //     json_env.addTime(get_absolute_time());
+            //     json_env.addNumber("temp", temp);
+            //     json_env.addNumber("pres", pres);
+            //     json_env.addNumber("hum", hum);
+            //     json_env.toBuffer(buf, STR_SIZE);
+            //     msg_publish("env", buf);
+            // }
 
             uint16_t left_raw =
                 mcp3204_get_raw(&mcp3204, mcp3204_channel_single_ch0);
