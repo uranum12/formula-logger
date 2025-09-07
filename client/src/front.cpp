@@ -298,16 +298,16 @@ int main() {
             json_stroke_front.toBuffer(buf, STR_SIZE);
             msg_publish("stroke/front", buf);
 
-            uint16_t af_raw =
-                mcp3204_get_raw(&mcp3204, mcp3204_channel_diff_ch2_ch3);
-
-            double af = af_raw * 3.3 / 4096;
-
-            auto json_af = Json();
-            json_af.addTime(get_absolute_time());
-            json_af.addNumber("af", af);
-            json_af.toBuffer(buf, STR_SIZE);
-            msg_publish("af", buf);
+            // uint16_t af_raw =
+            //     mcp3204_get_raw(&mcp3204, mcp3204_channel_diff_ch2_ch3);
+            //
+            // double af = af_raw * 3.3 / 4096;
+            //
+            // auto json_af = Json();
+            // json_af.addTime(get_absolute_time());
+            // json_af.addNumber("af", af);
+            // json_af.toBuffer(buf, STR_SIZE);
+            // msg_publish("af", buf);
 
             bno055_accel_t acc;
             bno055_gyro_t gyro;
