@@ -130,6 +130,8 @@ void core1_main() {
     int gear, rpm;
     bool meter_update = false;
 
+    int rpm_count = 0;
+
     for (;;) {
         if (queue_try_remove(&msg_queue, &str)) {
             uart_puts(UART_ID, str);
@@ -147,11 +149,12 @@ void core1_main() {
 
             auto rpm_opt = parseRPM(str);
             if (rpm_opt) {
-                if (gpio_get(PIN_TOGGLE) == 0) {
+                if (gpio_get(PIN_TOGGLE) == 0 && rpm_count % 4 == 0) {
                     rpm = static_cast<int>(*rpm_opt * 1.1);
                 } else {
                     rpm = *rpm_opt;
                 }
+                ++rpm_count;
                 meter_update = true;
             }
 
