@@ -100,6 +100,12 @@ func main() {
 		iap REAL,
 		gp REAL
 	)`)
+	db.Exec(`CREATE TABLE rpm (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		usec INTEGER,
+		time INTEGER,
+		rpm REAL
+	)`)
 
 	// ---------------- MQTT設定 ----------------
 	opts := mqtt.NewClientOptions().AddBroker("tcp://localhost:1883").SetClientID("go_mqtt_client")
@@ -137,6 +143,13 @@ func main() {
 		models.MapECUData,
 		"ecu",
 	)
+	subscribeMQTT(
+		client,
+		db,
+		"rpm",
+		models.MapRPMData,
+		"rpm",
+	)
 
 	// ---------------- フィールドマップ ----------------
 	fieldMap := map[string]FieldInfo{
@@ -150,6 +163,7 @@ func main() {
 		"ecu/tps":            {"ecu", "tps"},
 		"ecu/iap":            {"ecu", "iap"},
 		"ecu/gp":             {"ecu", "gp"},
+		"rpm/rpm":            {"rpm", "rpm"},
 	}
 
 	e := echo.New()
