@@ -13,6 +13,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/mattn/go-sqlite3"
 
 	"formula-logger/realtime-server/models"
@@ -132,6 +133,9 @@ func main() {
 	}
 
 	e := echo.New()
+
+	e.Use(middleware.Recover())
+	e.Use(middleware.Logger())
 
 	// ---------------- 最新N件取得 ----------------
 	getFieldsLatest := func(fields []string, n int) map[string][]FieldValue {
