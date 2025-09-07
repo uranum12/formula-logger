@@ -1,3 +1,4 @@
+import { createForm } from "@modular-forms/solid"
 import type { ChartConfiguration, LinearScaleOptions } from "chart.js"
 import {
   Chart,
@@ -9,8 +10,9 @@ import {
   Title,
   Tooltip,
 } from "chart.js"
-import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js"
 import ky from "ky"
+import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js"
+import * as v from "valibot"
 
 import { input } from "./style/input.css"
 import { main, section } from "./style/section.css"
@@ -55,28 +57,51 @@ const topics: Topic[] = [
   },
 ]
 
+const FormSchema = v.object({
+  topic0: v.string(),
+  topic1: v.string(),
+  topic2: v.string(),
+  limit: v.number(),
+})
+
+type FormType = v.InferInput<typeof FormSchema>
+
 function App() {
   let canvasRef: HTMLCanvasElement
   let chart: Chart
   let timer: number
 
-  const [topic, setTopic] = createSignal("")
-  const [data, setData] = createSignal<DataItem[]>([])
+  const [, { Form, Field }] = createForm<FormType>()
+
+  const [topic0, setTopic0] = createSignal<Topic>()
+  const [topic1, setTopic1] = createSignal<Topic>()
+  const [topic2, setTopic2] = createSignal<Topic>()
+  const [data0, setData0] = createSignal<DataItem[]>([])
+  const [data1, setData1] = createSignal<DataItem[]>([])
+  const [data2, setData2] = createSignal<DataItem[]>([])
 
   const fetchData = async () => {
+    const fields = [topic0()?.value, topic1()?.value, topic2()?.value].filter(
+      (t) => typeof t === "string" && t !== "",
+    )
+
+    if (fields.length === 0) {
+      return
+    }
+
     try {
       const json = await ky
         .get(`/latest/100`, {
-          searchParams: {
-            fields: topic(),
-          },
+          searchParams: { fields: fields.join(",") },
           timeout: 1000,
           retry: {
             limit: 0,
           },
         })
         .json()
-      setData(json[topic()])
+      setData0(json[topic0()?.value])
+      setData1(json[topic1()?.value])
+      setData2(json[topic2()?.value])
     } catch (err) {
       console.error("error :", err)
     }
@@ -97,6 +122,26 @@ function App() {
             tension: 0,
             spanGaps: true,
           },
+          {
+            label: "data1",
+            data: [],
+            borderColor: "rgba(54,162,235,1)",
+            backgroundColor: "rgba(54,162,235,0.2)",
+            yAxisID: "y1",
+            fill: false,
+            tension: 0,
+            spanGaps: true,
+          },
+          {
+            label: "data2",
+            data: [],
+            borderColor: "rgba(75,192,192,1)",
+            backgroundColor: "rgba(75,192,192,0.2)",
+            yAxisID: "y2",
+            fill: false,
+            tension: 0,
+            spanGaps: true,
+          },
         ],
       },
       options: {
@@ -105,7 +150,7 @@ function App() {
         scales: {
           x: {
             type: "linear",
-            title: { display: true, text: "x" },
+            title: { display: true, text: "usec" },
             bounds: "data",
           },
           y0: {
@@ -156,10 +201,34 @@ function App() {
   createEffect(() => {
     if (!chart) return
 
-    chart.data.datasets[0].data = data().map((e) => ({
-      x: e.usec,
-      y: e.value,
-    }))
+    const d0 = data0()
+    const d1 = data1()
+    const d2 = data2()
+
+    if (Array.isArray(d0) && d0.length !== 0) {
+      chart.data.datasets[0].data = d0.map((e) => ({
+        x: e.usec,
+        y: e.value,
+      }))
+    } else {
+      chart.data.datasets[0].data = []
+    }
+    if (Array.isArray(d1) && d1.length !== 0) {
+      chart.data.datasets[1].data = d1.map((e) => ({
+        x: e.usec,
+        y: e.value,
+      }))
+    } else {
+      chart.data.datasets[1].data = []
+    }
+    if (Array.isArray(d2) && d2.length !== 0) {
+      chart.data.datasets[2].data = d2.map((e) => ({
+        x: e.usec,
+        y: e.value,
+      }))
+    } else {
+      chart.data.datasets[2].data = []
+    }
 
     chart.update()
   })
@@ -172,10 +241,16 @@ function App() {
       LinearScaleOptions
     >
 
-    const y0Label: string = topics.find((e) => e.value === topic())?.label!
+    const y0Label = topic0()?.label ?? "y0"
+    const y1Label = topic1()?.label ?? "y1"
+    const y2Label = topic2()?.label ?? "y2"
 
     chart.data.datasets[0].label = y0Label
     scales.y0.title.text = y0Label
+    chart.data.datasets[1].label = y1Label
+    scales.y1.title.text = y1Label
+    chart.data.datasets[2].label = y2Label
+    scales.y2.title.text = y2Label
   })
 
   return (
@@ -186,16 +261,45 @@ function App() {
         }}
       ></canvas>
       <section class={section}>
-        <select
-          class={input}
-          onChange={(e) => {
-            setTopic(e.target.value)
+        <Form
+          onSubmit={(values) => {
+            setTopic0(topics.find((t) => values.topic0 === t.value))
+            setTopic1(topics.find((t) => values.topic1 === t.value))
+            setTopic2(topics.find((t) => values.topic2 === t.value))
           }}
         >
-          <For each={topics}>
-            {(item) => <option value={item.value}>{item.name}</option>}
-          </For>
-        </select>
+          <Field name="topic0" type="string">
+            {(field, props) => (
+              <select {...props} class={input} value={field.value ?? ""}>
+                <option value="">選択なし</option>
+                <For each={topics}>
+                  {(item) => <option value={item.value}>{item.name}</option>}
+                </For>
+              </select>
+            )}
+          </Field>
+          <Field name="topic1" type="string">
+            {(field, props) => (
+              <select {...props} class={input} value={field.value ?? ""}>
+                <option value="">選択なし</option>
+                <For each={topics}>
+                  {(item) => <option value={item.value}>{item.name}</option>}
+                </For>
+              </select>
+            )}
+          </Field>
+          <Field name="topic2" type="string">
+            {(field, props) => (
+              <select {...props} class={input} value={field.value ?? ""}>
+                <option value="">選択なし</option>
+                <For each={topics}>
+                  {(item) => <option value={item.value}>{item.name}</option>}
+                </For>
+              </select>
+            )}
+          </Field>
+          <button type="submit">反映</button>
+        </Form>
       </section>
     </main>
   )
