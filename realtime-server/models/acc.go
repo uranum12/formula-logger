@@ -32,32 +32,32 @@ type AccData struct {
 
 type AccDB struct {
 	DBTime
-	AccelX       float64 `json:"accel_x"`
-	AccelY       float64 `json:"accel_y"`
-	AccelZ       float64 `json:"accel_z"`
-	GyroX        float64 `json:"gyro_x"`
-	GyroY        float64 `json:"gyro_y"`
-	GyroZ        float64 `json:"gyro_z"`
-	MagX         float64 `json:"mag_x"`
-	MagY         float64 `json:"mag_y"`
-	MagZ         float64 `json:"mag_z"`
-	EulerHeading float64 `json:"euler_heading"`
-	EulerRoll    float64 `json:"euler_roll"`
-	EulerPitch   float64 `json:"euler_pitch"`
-	QuaternionW  float64 `json:"quaternion_w"`
-	QuaternionX  float64 `json:"quaternion_x"`
-	QuaternionY  float64 `json:"quaternion_y"`
-	QuaternionZ  float64 `json:"quaternion_z"`
-	LinearAccelX float64 `json:"linear_accel_x"`
-	LinearAccelY float64 `json:"linear_accel_y"`
-	LinearAccelZ float64 `json:"linear_accel_z"`
-	GravityX     float64 `json:"gravity_x"`
-	GravityY     float64 `json:"gravity_y"`
-	GravityZ     float64 `json:"gravity_z"`
-	StatusSys    int16   `json:"status_sys"`
-	StatusGyro   int16   `json:"status_gyro"`
-	StatusAccel  int16   `json:"status_accel"`
-	StatusMag    int16   `json:"status_mag"`
+	AccelX       float64 `db:"accel_x"`
+	AccelY       float64 `db:"accel_y"`
+	AccelZ       float64 `db:"accel_z"`
+	GyroX        float64 `db:"gyro_x"`
+	GyroY        float64 `db:"gyro_y"`
+	GyroZ        float64 `db:"gyro_z"`
+	MagX         float64 `db:"mag_x"`
+	MagY         float64 `db:"mag_y"`
+	MagZ         float64 `db:"mag_z"`
+	EulerHeading float64 `db:"euler_heading"`
+	EulerRoll    float64 `db:"euler_roll"`
+	EulerPitch   float64 `db:"euler_pitch"`
+	QuaternionW  float64 `db:"quaternion_w"`
+	QuaternionX  float64 `db:"quaternion_x"`
+	QuaternionY  float64 `db:"quaternion_y"`
+	QuaternionZ  float64 `db:"quaternion_z"`
+	LinearAccelX float64 `db:"linear_accel_x"`
+	LinearAccelY float64 `db:"linear_accel_y"`
+	LinearAccelZ float64 `db:"linear_accel_z"`
+	GravityX     float64 `db:"gravity_x"`
+	GravityY     float64 `db:"gravity_y"`
+	GravityZ     float64 `db:"gravity_z"`
+	StatusSys    int16   `db:"status_sys"`
+	StatusGyro   int16   `db:"status_gyro"`
+	StatusAccel  int16   `db:"status_accel"`
+	StatusMag    int16   `db:"status_mag"`
 }
 
 func MapAccData(d AccData, t DBTime) AccDB {
