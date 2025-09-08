@@ -106,6 +106,37 @@ func main() {
 		time INTEGER,
 		rpm REAL
 	)`)
+	db.Exec(`CREATE TABLE acc (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		usec INTEGER,
+		time INTEGER,
+		accel_x REAL,
+		accel_y REAL,
+		accel_z REAL,
+		gyro_x REAL,
+		gyro_y REAL,
+		gyro_z REAL,
+		mag_x REAL,
+		mag_y REAL,
+		mag_z REAL,
+		euler_heading REAL,
+		euler_roll REAL,
+		euler_pitch REAL,
+		quaternion_w REAL,
+		quaternion_x REAL,
+		quaternion_y REAL,
+		quaternion_z REAL,
+		linear_accel_x REAL,
+		linear_accel_y REAL,
+		linear_accel_z REAL,
+		gravity_x REAL,
+		gravity_y REAL,
+		gravity_z REAL,
+		status_sys INTEGER,
+		status_gyro INTEGER,
+		status_accel INTEGER,
+		status_mag INTEGER
+	)`)
 
 	// ---------------- MQTT設定 ----------------
 	opts := mqtt.NewClientOptions().AddBroker("tcp://localhost:1883").SetClientID("go_mqtt_client")
@@ -150,6 +181,13 @@ func main() {
 		models.MapRPMData,
 		"rpm",
 	)
+	subscribeMQTT(
+		client,
+		db,
+		"acc",
+		models.MapAccData,
+		"acc",
+	)
 
 	// ---------------- フィールドマップ ----------------
 	fieldMap := map[string]FieldInfo{
@@ -164,6 +202,32 @@ func main() {
 		"ecu/iap":            {"ecu", "iap"},
 		"ecu/gp":             {"ecu", "gp"},
 		"rpm/rpm":            {"rpm", "rpm"},
+		"accel_x":            {"acc", "accel_x"},
+		"accel_y":            {"acc", "accel_y"},
+		"accel_z":            {"acc", "accel_z"},
+		"gyro_x":             {"acc", "gyro_x"},
+		"gyro_y":             {"acc", "gyro_y"},
+		"gyro_z":             {"acc", "gyro_z"},
+		"mag_x":              {"acc", "mag_x"},
+		"mag_y":              {"acc", "mag_y"},
+		"mag_z":              {"acc", "mag_z"},
+		"euler_heading":      {"acc", "euler_heading"},
+		"euler_roll":         {"acc", "euler_roll"},
+		"euler_pitch":        {"acc", "euler_pitch"},
+		"quaternion_w":       {"acc", "quaternion_w"},
+		"quaternion_x":       {"acc", "quaternion_x"},
+		"quaternion_y":       {"acc", "quaternion_y"},
+		"quaternion_z":       {"acc", "quaternion_z"},
+		"linear_accel_x":     {"acc", "linear_accel_x"},
+		"linear_accel_y":     {"acc", "linear_accel_y"},
+		"linear_accel_z":     {"acc", "linear_accel_z"},
+		"gravity_x":          {"acc", "gravity_x"},
+		"gravity_y":          {"acc", "gravity_y"},
+		"gravity_z":          {"acc", "gravity_z"},
+		"status_sys":         {"acc", "status_sys"},
+		"status_gyro":        {"acc", "status_gyro"},
+		"status_accel":       {"acc", "status_accel"},
+		"status_mag":         {"acc", "status_mag"},
 	}
 
 	e := echo.New()
