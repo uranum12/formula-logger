@@ -7,7 +7,7 @@ type RPMData struct {
 
 type RPMDB struct {
 	DBTime
-	RPM float64 `json:"rpm"`
+	RPM float64 `db:"rpm"`
 }
 
 func MapRPMData(d RPMData, t DBTime) RPMDB {
