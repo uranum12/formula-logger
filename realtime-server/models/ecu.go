@@ -13,7 +13,22 @@ type ECUDB struct {
 	ECT float64 `db:"ect"`
 	TPS float64 `db:"tps"`
 	IAP float64 `db:"iap"`
-	GP  float64 `db:"gp"`
+	GP  int     `db:"gp"`
+}
+
+func calcGear(v float64) int {
+	vRef := []float64{
+		0.0, 0.88, 1.10, 1.46, 1.77, 2.09, 2.38, 3.0,
+	}
+
+	for i := range 6 {
+		low := (vRef[i] + vRef[i+1]) / 2.0
+		high := (vRef[i+1] + vRef[i+2]) / 2.0
+		if low <= v && v < high {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 func MapECUData(d ECUData, t DBTime) ECUDB {
@@ -22,6 +37,6 @@ func MapECUData(d ECUData, t DBTime) ECUDB {
 		ECT:    d.ECT,
 		TPS:    d.TPS,
 		IAP:    d.IAP,
-		GP:     d.GP,
+		GP:     calcGear(d.GP),
 	}
 }

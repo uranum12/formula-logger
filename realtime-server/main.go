@@ -98,7 +98,7 @@ func main() {
 		ect REAL,
 		tps REAL,
 		iap REAL,
-		gp REAL
+		gp INTEGER
 	)`)
 	db.Exec(`CREATE TABLE rpm (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
