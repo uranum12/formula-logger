@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -18,6 +19,9 @@ import (
 
 	"formula-logger/realtime-server/models"
 )
+
+//go:embed index.html
+var indexHTML []byte
 
 // ---------------- データ構造 ----------------
 
@@ -294,7 +298,8 @@ func main() {
 	}
 
 	e.GET("/", func(c echo.Context) error {
-		return c.File("dist/index.html")
+		return c.HTMLBlob(http.StatusOK, indexHTML)
+		// return c.File("dist/index.html")
 	})
 
 	// ---------------- 最新N件 API ----------------
