@@ -1,0 +1,18 @@
+[Unit]
+Description=Realtime Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=formula
+WorkingDirectory=/home/formula
+ExecStart=/home/formula/realtime-server
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
