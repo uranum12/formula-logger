@@ -56,6 +56,31 @@ const topics: Topic[] = [
     value: "water/outlet_temp",
     label: "outlet (C)",
   },
+  {
+    name: "ECU ECT",
+    value: "ecu/ect",
+    label: "ECT (V)",
+  },
+  {
+    name: "ECU TPS",
+    value: "ecu/tps",
+    label: "TPS (V)",
+  },
+  {
+    name: "ECU IAP",
+    value: "ecu/iap",
+    label: "IAP (V)",
+  },
+  {
+    name: "ECU GP",
+    value: "ecu/gp",
+    label: "GP",
+  },
+  {
+    name: "RPM",
+    value: "rpm/rpm",
+    label: "RPM",
+  },
 ]
 
 const FormSchema = v.object({
