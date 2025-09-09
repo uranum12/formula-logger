@@ -240,6 +240,7 @@ func main() {
 
 	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 9}))
 
 	// ---------------- 最新N件取得 ----------------
 	getFieldsLatest := func(fields []string, n int) map[string][]FieldValue {
