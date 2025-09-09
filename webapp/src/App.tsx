@@ -45,6 +45,10 @@ type DataItem = {
   value: number
 }
 
+type ResType = {
+  [key: string]: DataItem[]
+}
+
 const topics: Topic[] = [
   {
     name: "ストロークセンサ左前",
@@ -269,7 +273,7 @@ function App() {
 
     try {
       const json = await ky
-        .get(`/latest/${limit() ?? 100}`, {
+        .get<ResType>(`/latest/${limit() ?? 100}`, {
           searchParams: { fields: fields.join(",") },
           timeout: 1000,
           retry: {
@@ -278,9 +282,9 @@ function App() {
         })
         .json()
       batch(() => {
-        setData0(json[topic0()?.value])
-        setData1(json[topic1()?.value])
-        setData2(json[topic2()?.value])
+        setData0(json[topic0()?.value ?? ""] ?? [])
+        setData1(json[topic1()?.value ?? ""] ?? [])
+        setData2(json[topic2()?.value ?? ""] ?? [])
       })
     } catch (err) {
       console.error("error :", err)
