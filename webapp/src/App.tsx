@@ -50,6 +50,16 @@ const topics: Topic[] = [
     value: "stroke/front/right",
     label: "front/right (V)",
   },
+  {
+    name: "ストロークセンサ左後",
+    value: "stroke/rear/left",
+    label: "rear/left (V)",
+  },
+  {
+    name: "ストロークセンサ右後",
+    value: "stroke/rear/right",
+    label: "rear/right (V)",
+  },
   { name: "水温センサ 流入口", value: "water/inlet_temp", label: "inlet (C)" },
   {
     name: "水温センサ 流出口",
