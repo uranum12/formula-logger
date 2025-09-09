@@ -91,6 +91,21 @@ const topics: Topic[] = [
     value: "rpm/rpm",
     label: "RPM",
   },
+  {
+    name: "IMU 加速度 X",
+    value: "acc/accel_x",
+    label: "Accel X (m/s^2)",
+  },
+  {
+    name: "IMU 加速度 Y",
+    value: "acc/accel_y",
+    label: "Accel Y (m/s^2)",
+  },
+  {
+    name: "IMU 加速度 Z",
+    value: "acc/accel_z",
+    label: "Accel Z (m/s^2)",
+  },
 ]
 
 const FormSchema = v.object({
