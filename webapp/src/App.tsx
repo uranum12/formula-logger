@@ -11,11 +11,17 @@ import {
   Tooltip,
 } from "chart.js"
 import ky from "ky"
-import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js"
+import {
+  batch,
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+} from "solid-js"
 import * as v from "valibot"
-
-import { input } from "./style/input.css"
 import { button } from "./style/button.css"
+import { input } from "./style/input.css"
 import { main, section } from "./style/section.css"
 
 Chart.register(
@@ -271,9 +277,11 @@ function App() {
           },
         })
         .json()
-      setData0(json[topic0()?.value])
-      setData1(json[topic1()?.value])
-      setData2(json[topic2()?.value])
+      batch(() => {
+        setData0(json[topic0()?.value])
+        setData1(json[topic1()?.value])
+        setData2(json[topic2()?.value])
+      })
     } catch (err) {
       console.error("error :", err)
     }
