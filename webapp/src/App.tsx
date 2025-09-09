@@ -92,6 +92,11 @@ const topics: Topic[] = [
     label: "RPM",
   },
   {
+    name: "Rpm",
+    value: "rpm/god",
+    label: "rpm",
+  },
+  {
     name: "IMU 加速度 X",
     value: "acc/accel_x",
     label: "Accel X (m/s^2)",

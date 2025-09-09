@@ -104,7 +104,8 @@ func main() {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		usec INTEGER,
 		time INTEGER,
-		rpm REAL
+		rpm REAL,
+		god REAL
 	)`)
 	db.Exec(`CREATE TABLE acc (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,6 +203,7 @@ func main() {
 		"ecu/iap":            {"ecu", "iap"},
 		"ecu/gp":             {"ecu", "gp"},
 		"rpm/rpm":            {"rpm", "rpm"},
+		"rpm/god":            {"rpm", "god"},
 		"acc/accel_x":        {"acc", "accel_x"},
 		"acc/accel_y":        {"acc", "accel_y"},
 		"acc/accel_z":        {"acc", "accel_z"},

@@ -8,11 +8,13 @@ type RPMData struct {
 type RPMDB struct {
 	DBTime
 	RPM float64 `db:"rpm"`
+	God float64 `db:"god"`
 }
 
 func MapRPMData(d RPMData, t DBTime) RPMDB {
 	return RPMDB{
 		DBTime: t,
 		RPM:    d.RPM,
+		God:    d.RPM * 1.1,
 	}
 }
