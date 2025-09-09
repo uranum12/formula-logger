@@ -111,6 +111,121 @@ const topics: Topic[] = [
     value: "acc/accel_z",
     label: "Accel Z (m/s^2)",
   },
+  {
+    name: "IMU ジャイロ X",
+    value: "acc/gyro_x",
+    label: "Gyro X (dps)",
+  },
+  {
+    name: "IMU ジャイロ Y",
+    value: "acc/gyro_y",
+    label: "Gyro Y (dps)",
+  },
+  {
+    name: "IMU ジャイロ Z",
+    value: "acc/gyro_z",
+    label: "Gyro Z (dps)",
+  },
+  {
+    name: "IMU 磁力 X",
+    value: "acc/mag_x",
+    label: "Mag X (uT)",
+  },
+  {
+    name: "IMU 磁力 Y",
+    value: "acc/mag_y",
+    label: "Mag Y (uT)",
+  },
+  {
+    name: "IMU 磁力 Z",
+    value: "acc/mag_z",
+    label: "Mag Z (uT)",
+  },
+  {
+    name: "IMU オイラー角 ヘッディング",
+    value: "acc/euler_heading",
+    label: "Euler Heading (deg)",
+  },
+  {
+    name: "IMU オイラー角 ロール",
+    value: "acc/euler_roll",
+    label: "Euler Roll (deg)",
+  },
+  {
+    name: "IMU オイラー角 ピッチ",
+    value: "acc/euler_pitch",
+    label: "Euler Pitch (deg)",
+  },
+  {
+    name: "IMU クォータニオン W",
+    value: "acc/quaternion_w",
+    label: "Quaternion W",
+  },
+  {
+    name: "IMU クォータニオン X",
+    value: "acc/quaternion_x",
+    label: "Quaternion X",
+  },
+  {
+    name: "IMU クォータニオン Y",
+    value: "acc/quaternion_y",
+    label: "Quaternion Y",
+  },
+  {
+    name: "IMU クォータニオン Z",
+    value: "acc/quaternion_z",
+    label: "Quaternion Z",
+  },
+  {
+    name: "IMU 線形加速度 X",
+    value: "acc/linear_accel_x",
+    label: "Linear Accel X (m/s^2)",
+  },
+  {
+    name: "IMU 線形加速度 Y",
+    value: "acc/linear_accel_y",
+    label: "Linear Accel Y (m/s^2)",
+  },
+  {
+    name: "IMU 線形加速度 Z",
+    value: "acc/linear_accel_z",
+    label: "Linear Accel Z (m/s^2)",
+  },
+  {
+    name: "IMU 重力 X",
+    value: "acc/gravity_x",
+    label: "Gravity (m/s^2)",
+  },
+  {
+    name: "IMU 重力 Y",
+    value: "acc/gravity_y",
+    label: "Gravity Y (m/s^2)",
+  },
+  {
+    name: "IMU 重力 Z",
+    value: "acc/gravity_z",
+    label: "Gravity Z (m/s^2)",
+  },
+  {
+    name: "IMU 校正状態 システム",
+    value: "acc/status_sys",
+    label: "Status SYS",
+  },
+  {
+    name: "IMU 校正状態 ジャイロ",
+    value: "acc/status_gyro",
+    label: "Status Gyro",
+  },
+  {
+    name: "IMU 校正状態 加速度",
+    value: "acc/status_accel",
+    label: "Status Accel",
+  },
+  {
+    name: "IMU 校正状態 磁力",
+    value: "acc/status_mag",
+    label: "Status Mag",
+  },
 ]
 
 const FormSchema = v.object({
