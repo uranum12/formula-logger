@@ -253,16 +253,17 @@ func main() {
 			sub := db.From(goqu.I(info.Table)).
 				Select(
 					goqu.C("usec"),
+					goqu.C("time"),
 					goqu.C(info.Column),
 				).
-				Order(goqu.C("usec").Desc()).
+				Order(goqu.C("time").Desc()).
 				Limit(uint(n))
 			ds := db.From(sub.As("sub")).
 				Select(
 					goqu.C("usec"),
 					goqu.C(info.Column).As("value"),
 				).
-				Order(goqu.C("usec").Asc())
+				Order(goqu.C("time").Asc())
 			var arr []FieldValue
 			if err := ds.ScanStructs(&arr); err != nil {
 				log.Println("query error for", f, ":", err)
