@@ -10,16 +10,16 @@ import {
   Title,
   Tooltip,
 } from "chart.js"
-import ky from "ky"
 import {
-  batch,
   createEffect,
+  createResource,
   createSignal,
   For,
   onCleanup,
   onMount,
 } from "solid-js"
 import * as v from "valibot"
+import { type DataItem, fetchLatestData } from "@/api/latest"
 import { topics } from "@/constants/topics"
 import { button } from "@/style/button.css"
 import { input } from "@/style/input.css"
@@ -35,15 +35,6 @@ Chart.register(
   Legend,
   Tooltip,
 )
-
-type DataItem = {
-  usec: number
-  value: number
-}
-
-type ResType = {
-  [key: string]: DataItem[]
-}
 
 const FormSchema = v.object({
   topic0: v.string(),
@@ -61,42 +52,20 @@ function App() {
 
   const [, { Form, Field }] = createForm<FormType>()
 
-  const [limit, setLimit] = createSignal<number>()
+  const [limit, setLimit] = createSignal<number>(100)
   const [topic0, setTopic0] = createSignal<Topic>()
   const [topic1, setTopic1] = createSignal<Topic>()
   const [topic2, setTopic2] = createSignal<Topic>()
-  const [data0, setData0] = createSignal<DataItem[]>([])
-  const [data1, setData1] = createSignal<DataItem[]>([])
-  const [data2, setData2] = createSignal<DataItem[]>([])
 
-  const fetchData = async () => {
-    const fields = [topic0()?.value, topic1()?.value, topic2()?.value].filter(
-      (t) => typeof t === "string" && t !== "",
-    )
-
-    if (fields.length === 0) {
-      return
-    }
-
-    try {
-      const json = await ky
-        .get<ResType>(`/latest/${limit() ?? 100}`, {
-          searchParams: { fields: fields.join(",") },
-          timeout: 1000,
-          retry: {
-            limit: 0,
-          },
-        })
-        .json()
-      batch(() => {
-        setData0(json[topic0()?.value ?? ""] ?? [])
-        setData1(json[topic1()?.value ?? ""] ?? [])
-        setData2(json[topic2()?.value ?? ""] ?? [])
-      })
-    } catch (err) {
-      console.error("error :", err)
-    }
-  }
+  const [res, { refetch }] = createResource(
+    () => ({
+      fields: [topic0()?.value, topic1()?.value, topic2()?.value].filter(
+        Boolean,
+      ) as string[],
+      limit: limit() ?? 100,
+    }),
+    ({ fields, limit }) => fetchLatestData(fields, limit),
+  )
 
   onMount(() => {
     const config: ChartConfiguration = {
@@ -182,44 +151,31 @@ function App() {
     if (!ctx) return
     chart = new Chart(ctx, config)
 
-    timer = setInterval(fetchData, 1000)
+    timer = setInterval(refetch, 1000)
   })
 
-  onCleanup(() => {
-    clearInterval(timer)
-  })
+  onCleanup(() => clearInterval(timer))
 
   createEffect(() => {
     if (!chart) return
+    const json = res() ?? {}
 
-    const d0 = data0()
-    const d1 = data1()
-    const d2 = data2()
+    const d0 = json[topic0()?.value ?? ""] ?? []
+    const d1 = json[topic1()?.value ?? ""] ?? []
+    const d2 = json[topic2()?.value ?? ""] ?? []
 
-    if (Array.isArray(d0) && d0.length !== 0) {
-      chart.data.datasets[0].data = d0.map((e) => ({
-        x: e.usec,
-        y: e.value,
-      }))
-    } else {
-      chart.data.datasets[0].data = []
-    }
-    if (Array.isArray(d1) && d1.length !== 0) {
-      chart.data.datasets[1].data = d1.map((e) => ({
-        x: e.usec,
-        y: e.value,
-      }))
-    } else {
-      chart.data.datasets[1].data = []
-    }
-    if (Array.isArray(d2) && d2.length !== 0) {
-      chart.data.datasets[2].data = d2.map((e) => ({
-        x: e.usec,
-        y: e.value,
-      }))
-    } else {
-      chart.data.datasets[2].data = []
-    }
+    chart.data.datasets[0].data = d0.map((e: DataItem) => ({
+      x: e.usec,
+      y: e.value,
+    }))
+    chart.data.datasets[1].data = d1.map((e: DataItem) => ({
+      x: e.usec,
+      y: e.value,
+    }))
+    chart.data.datasets[2].data = d2.map((e: DataItem) => ({
+      x: e.usec,
+      y: e.value,
+    }))
 
     chart.update()
   })
