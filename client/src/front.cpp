@@ -16,7 +16,7 @@
 #include <cJSON.h>
 
 // #include "bme280.h"
-#include "bno055.h"
+// #include "bno055.h"
 #include "mcp3204.h"
 #include "shift_out.h"
 
@@ -29,9 +29,9 @@
 #define SPI_ID (spi0)
 #define SPI_BAUD (1'000'000)
 
-#define I2C_ID (i2c1)
-#define I2C_BAUD (400'000)
-#define I2C_ADDR_BNO055 (0x28)
+// #define I2C_ID (i2c1)
+// #define I2C_BAUD (400'000)
+// #define I2C_ADDR_BNO055 (0x28)
 
 #define UART_ID (uart1)
 #define UART_BAUD (115'200)
@@ -48,8 +48,8 @@
 #define PIN_74HC595_CLOCK (11)
 #define PIN_74HC595_LATCH (12)
 
-#define PIN_I2C_SDA (14)
-#define PIN_I2C_SCL (15)
+// #define PIN_I2C_SDA (14)
+// #define PIN_I2C_SCL (15)
 
 #define PIN_TOGGLE (16)
 
@@ -61,7 +61,7 @@
 bi_decl(bi_3pins_with_func(PIN_SPI_SCK, PIN_SPI_TX, PIN_SPI_RX, GPIO_FUNC_SPI));
 // bi_decl(bi_1pin_with_name(PIN_SPI_CS_BME280, "SPI CS for bme280"));
 bi_decl(bi_1pin_with_name(PIN_SPI_CS_MCP3204, "SPI CS for mcp3204 "));
-bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL, GPIO_FUNC_I2C));
+// bi_decl(bi_2pins_with_func(PIN_I2C_SDA, PIN_I2C_SCL, GPIO_FUNC_I2C));
 bi_decl(bi_1pin_with_name(PIN_74HC595_DATA, "74HC595 data"));
 bi_decl(bi_1pin_with_name(PIN_74HC595_CLOCK, "74HC595 clock"));
 bi_decl(bi_1pin_with_name(PIN_74HC595_LATCH, "74HC595 latch"));
@@ -187,11 +187,11 @@ int main() {
     gpio_set_dir(PIN_SPI_CS_MCP3204, GPIO_OUT);
     gpio_put(PIN_SPI_CS_MCP3204, 1);
 
-    i2c_init(I2C_ID, I2C_BAUD);
-    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(PIN_I2C_SDA);
-    gpio_pull_up(PIN_I2C_SCL);
+    // i2c_init(I2C_ID, I2C_BAUD);
+    // gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
+    // gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
+    // gpio_pull_up(PIN_I2C_SDA);
+    // gpio_pull_up(PIN_I2C_SCL);
 
     gpio_init(PIN_LED);
     gpio_set_dir(PIN_LED, GPIO_OUT);
@@ -230,19 +230,19 @@ int main() {
         .pin_cs = PIN_SPI_CS_MCP3204,
     };
 
-    bno055_dev_t bno055 = {
-        .i2c_id = I2C_ID,
-        .addr = I2C_ADDR_BNO055,
-    };
+    // bno055_dev_t bno055 = {
+    //     .i2c_id = I2C_ID,
+    //     .addr = I2C_ADDR_BNO055,
+    // };
 
     sleep_ms(1000);
 
-    if (uint8_t chip_id = bno055_get_chip_id(&bno055);
-        bno055_is_chip_id_valid(chip_id)) {
-        printf("chip_id: %#x is valid\n", chip_id);
-    }
-
-    bno055_set_mode(&bno055, bno055_mode_ndof);
+    // if (uint8_t chip_id = bno055_get_chip_id(&bno055);
+    //     bno055_is_chip_id_valid(chip_id)) {
+    //     printf("chip_id: %#x is valid\n", chip_id);
+    // }
+    //
+    // bno055_set_mode(&bno055, bno055_mode_ndof);
     sleep_ms(50);
 
     shift_out_init(&shift_out);
@@ -314,53 +314,53 @@ int main() {
             // json_af.toBuffer(buf, STR_SIZE);
             // msg_publish("af", buf);
 
-            bno055_accel_t acc;
-            bno055_gyro_t gyro;
-            bno055_mag_t mag;
-            bno055_euler_t euler;
-            bno055_quaternion_t quaternion;
-            bno055_linear_accel_t linear_accel;
-            bno055_gravity_t gravity;
-            bno055_calib_status_t status;
-            bno055_read_accel(&bno055, &acc);
-            bno055_read_gyro(&bno055, &gyro);
-            bno055_read_mag(&bno055, &mag);
-            bno055_read_euler(&bno055, &euler);
-            bno055_read_quaternion(&bno055, &quaternion);
-            bno055_read_linear_accel(&bno055, &linear_accel);
-            bno055_read_gravity(&bno055, &gravity);
-            bno055_read_calib_status(&bno055, &status);
+            // bno055_accel_t acc;
+            // bno055_gyro_t gyro;
+            // bno055_mag_t mag;
+            // bno055_euler_t euler;
+            // bno055_quaternion_t quaternion;
+            // bno055_linear_accel_t linear_accel;
+            // bno055_gravity_t gravity;
+            // bno055_calib_status_t status;
+            // bno055_read_accel(&bno055, &acc);
+            // bno055_read_gyro(&bno055, &gyro);
+            // bno055_read_mag(&bno055, &mag);
+            // bno055_read_euler(&bno055, &euler);
+            // bno055_read_quaternion(&bno055, &quaternion);
+            // bno055_read_linear_accel(&bno055, &linear_accel);
+            // bno055_read_gravity(&bno055, &gravity);
+            // bno055_read_calib_status(&bno055, &status);
 
-            auto json_acc = Json();
-            json_acc.addTime(get_absolute_time());
-            json_acc.addNumber("ax", acc.x);
-            json_acc.addNumber("ay", acc.y);
-            json_acc.addNumber("az", acc.z);
-            json_acc.addNumber("gx", gyro.x);
-            json_acc.addNumber("gy", gyro.y);
-            json_acc.addNumber("gz", gyro.z);
-            json_acc.addNumber("mx", mag.x);
-            json_acc.addNumber("my", mag.y);
-            json_acc.addNumber("mz", mag.z);
-            json_acc.addNumber("h", euler.heading);
-            json_acc.addNumber("r", euler.roll);
-            json_acc.addNumber("p", euler.pitch);
-            json_acc.addNumber("qw", quaternion.w);
-            json_acc.addNumber("qx", quaternion.x);
-            json_acc.addNumber("qy", quaternion.y);
-            json_acc.addNumber("qz", quaternion.z);
-            json_acc.addNumber("lx", linear_accel.x);
-            json_acc.addNumber("ly", linear_accel.y);
-            json_acc.addNumber("lz", linear_accel.z);
-            json_acc.addNumber("x", gravity.x);
-            json_acc.addNumber("y", gravity.y);
-            json_acc.addNumber("z", gravity.z);
-            json_acc.addNumber("ss", status.sys);
-            json_acc.addNumber("sg", status.gyro);
-            json_acc.addNumber("sa", status.accel);
-            json_acc.addNumber("sm", status.mag);
-            json_acc.toBuffer(buf, STR_SIZE);
-            msg_publish("acc", buf);
+            // auto json_acc = Json();
+            // json_acc.addTime(get_absolute_time());
+            // json_acc.addNumber("ax", acc.x);
+            // json_acc.addNumber("ay", acc.y);
+            // json_acc.addNumber("az", acc.z);
+            // json_acc.addNumber("gx", gyro.x);
+            // json_acc.addNumber("gy", gyro.y);
+            // json_acc.addNumber("gz", gyro.z);
+            // json_acc.addNumber("mx", mag.x);
+            // json_acc.addNumber("my", mag.y);
+            // json_acc.addNumber("mz", mag.z);
+            // json_acc.addNumber("h", euler.heading);
+            // json_acc.addNumber("r", euler.roll);
+            // json_acc.addNumber("p", euler.pitch);
+            // json_acc.addNumber("qw", quaternion.w);
+            // json_acc.addNumber("qx", quaternion.x);
+            // json_acc.addNumber("qy", quaternion.y);
+            // json_acc.addNumber("qz", quaternion.z);
+            // json_acc.addNumber("lx", linear_accel.x);
+            // json_acc.addNumber("ly", linear_accel.y);
+            // json_acc.addNumber("lz", linear_accel.z);
+            // json_acc.addNumber("x", gravity.x);
+            // json_acc.addNumber("y", gravity.y);
+            // json_acc.addNumber("z", gravity.z);
+            // json_acc.addNumber("ss", status.sys);
+            // json_acc.addNumber("sg", status.gyro);
+            // json_acc.addNumber("sa", status.accel);
+            // json_acc.addNumber("sm", status.mag);
+            // json_acc.toBuffer(buf, STR_SIZE);
+            // msg_publish("acc", buf);
 
             gpio_put(PIN_LED, 0);
 
