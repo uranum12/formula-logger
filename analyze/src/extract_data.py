@@ -40,6 +40,11 @@ def ecu(base_path: Path) -> None:
         df = pd.read_csv(path, on_bad_lines="skip", engine="python")
 
         df = df[df["topic"] == "ecu"]
+
+        if len(df) == 0:
+            print("not found: ECU")
+            return
+
         df = df[df["payload"].apply(is_json)]
 
         payload_df = df["payload"].apply(json.loads).apply(pd.Series)
@@ -69,6 +74,11 @@ def rpm(base_path: Path) -> None:
         df = pd.read_csv(path, on_bad_lines="skip", engine="python")
 
         df = df[df["topic"] == "rpm"]
+
+        if len(df) == 0:
+            print("not found: RPM")
+            return
+
         df = df[df["payload"].apply(is_json)]
 
         payload_df = df["payload"].apply(json.loads).apply(pd.Series)
@@ -96,6 +106,11 @@ def water(base_path: Path) -> None:
         df = pd.read_csv(path, on_bad_lines="skip", engine="python")
 
         df = df[df["topic"] == "water"]
+
+        if len(df) == 0:
+            print("not found: Water")
+            return
+
         df = df[df["payload"].apply(is_json)]
 
         payload_df = df["payload"].apply(json.loads).apply(pd.Series)
@@ -125,6 +140,11 @@ def stroke_front(base_path: Path) -> None:
         df = pd.read_csv(path, on_bad_lines="skip", engine="python")
 
         df = df[df["topic"] == "stroke/front"]
+
+        if len(df) == 0:
+            print("not found: Stroke Front")
+            return
+
         df = df[df["payload"].apply(is_json)]
 
         payload_df = df["payload"].apply(json.loads).apply(pd.Series)
@@ -152,6 +172,11 @@ def stroke_rear(base_path: Path) -> None:
         df = pd.read_csv(path, on_bad_lines="skip", engine="python")
 
         df = df[df["topic"] == "stroke/rear"]
+
+        if len(df) == 0:
+            print("not found: Stroke Rear")
+            return
+
         df = df[df["payload"].apply(is_json)]
 
         payload_df = df["payload"].apply(json.loads).apply(pd.Series)
@@ -179,6 +204,11 @@ def acc(base_path: Path) -> None:
         df = pd.read_csv(path, on_bad_lines="skip", engine="python")
 
         df = df[df["topic"] == "acc"]
+
+        if len(df) == 0:
+            print("not found: Acc")
+            return
+
         df = df[df["payload"].apply(is_json)]
 
         payload_df = df["payload"].apply(json.loads).apply(pd.Series)
