@@ -21,6 +21,18 @@ export const input = style({
   },
 })
 
+export const inputContainerY = style({
+  display: "flex",
+  flexDirection: "column",
+  rowGap: op.size1,
+})
+
+export const inputContainerX = style({
+  display: "flex",
+  justifyContent: "space-between",
+  columnGap: op.size1,
+})
+
 export const checkbox = style({
   width: "1rem",
   height: "1rem",

@@ -22,7 +22,7 @@ import * as v from "valibot"
 import { type DataItem, fetchLatestData } from "@/api/latest"
 import { topics } from "@/constants/topics"
 import { button } from "@/style/button.css"
-import { input } from "@/style/input.css"
+import { input, inputContainerY } from "@/style/input.css"
 import { main, section } from "@/style/section.css"
 import type { Topic } from "@/types/topic"
 
@@ -216,49 +216,51 @@ function App() {
             setLimit(values.limit)
           }}
         >
-          <Field name="topic0" type="string">
-            {(field, props) => (
-              <select {...props} class={input} value={field.value ?? ""}>
-                <option value="">選択なし</option>
-                <For each={topics}>
-                  {(item) => <option value={item.value}>{item.name}</option>}
-                </For>
-              </select>
-            )}
-          </Field>
-          <Field name="topic1" type="string">
-            {(field, props) => (
-              <select {...props} class={input} value={field.value ?? ""}>
-                <option value="">選択なし</option>
-                <For each={topics}>
-                  {(item) => <option value={item.value}>{item.name}</option>}
-                </For>
-              </select>
-            )}
-          </Field>
-          <Field name="topic2" type="string">
-            {(field, props) => (
-              <select {...props} class={input} value={field.value ?? ""}>
-                <option value="">選択なし</option>
-                <For each={topics}>
-                  {(item) => <option value={item.value}>{item.name}</option>}
-                </For>
-              </select>
-            )}
-          </Field>
-          <Field name="limit" type="number">
-            {(field, props) => (
-              <input
-                {...props}
-                class={input}
-                type="number"
-                value={field.value ?? 100}
-              />
-            )}
-          </Field>
-          <button type="submit" class={button}>
-            Submit
-          </button>
+          <div class={inputContainerY}>
+            <Field name="topic0" type="string">
+              {(field, props) => (
+                <select {...props} class={input} value={field.value ?? ""}>
+                  <option value="">選択なし</option>
+                  <For each={topics}>
+                    {(item) => <option value={item.value}>{item.name}</option>}
+                  </For>
+                </select>
+              )}
+            </Field>
+            <Field name="topic1" type="string">
+              {(field, props) => (
+                <select {...props} class={input} value={field.value ?? ""}>
+                  <option value="">選択なし</option>
+                  <For each={topics}>
+                    {(item) => <option value={item.value}>{item.name}</option>}
+                  </For>
+                </select>
+              )}
+            </Field>
+            <Field name="topic2" type="string">
+              {(field, props) => (
+                <select {...props} class={input} value={field.value ?? ""}>
+                  <option value="">選択なし</option>
+                  <For each={topics}>
+                    {(item) => <option value={item.value}>{item.name}</option>}
+                  </For>
+                </select>
+              )}
+            </Field>
+            <Field name="limit" type="number">
+              {(field, props) => (
+                <input
+                  {...props}
+                  class={input}
+                  type="number"
+                  value={field.value ?? 100}
+                />
+              )}
+            </Field>
+            <button type="submit" class={button}>
+              Submit
+            </button>
+          </div>
         </Form>
       </section>
     </main>
