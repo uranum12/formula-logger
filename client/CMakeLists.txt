@@ -12,11 +12,6 @@ pico_sdk_init()
 add_library(cjson libs/cjson/cJSON.c)
 target_include_directories(cjson PUBLIC libs/cjson)
 
-add_library(uart_tx src/uart_tx.c)
-target_include_directories(uart_tx PUBLIC include)
-pico_generate_pio_header(uart_tx ${CMAKE_CURRENT_LIST_DIR}/src/uart_tx.pio)
-target_link_libraries(uart_tx PUBLIC pico_stdlib hardware_pio)
-
 add_library(shift_out src/shift_out.c)
 target_include_directories(shift_out PUBLIC include)
 pico_generate_pio_header(shift_out ${CMAKE_CURRENT_LIST_DIR}/src/shift_out.pio)
