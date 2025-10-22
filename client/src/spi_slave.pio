@@ -1,0 +1,21 @@
+.pio_version 0
+
+.program spi_slave
+
+.wrap_target
+    pull block
+
+    set x, 7
+
+loop:
+    wait 0 gpio 10
+    out pins, 1
+
+    wait 1 gpio 10
+    in pins, 1
+
+    jmp x-- loop
+
+    push block
+
+    .wrap

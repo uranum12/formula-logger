@@ -11,21 +11,26 @@
 
 class Json {
 public:
-    Json() : root_(cJSON_CreateObject(), cJSON_Delete) {}
-
-    void addNumber(const char* key, double value) {
-        cJSON_AddNumberToObject(root_.get(), key, value);
+    Json(const char* topic)
+        : root_(cJSON_CreateObject(), cJSON_Delete),
+          payload_(cJSON_CreateObject()) {
+        cJSON_AddStringToObject(root_.get(), "topic", topic);
+        cJSON_AddItemToObject(root_.get(), "payload", payload_);
     }
-    void addString(const char* key, const char* value) {
-        cJSON_AddStringToObject(root_.get(), key, value);
+
+    void add(const char* key, double value) {
+        cJSON_AddNumberToObject(payload_, key, value);
+    }
+    void add(const char* key, const char* value) {
+        cJSON_AddStringToObject(payload_, key, value);
     }
 
     void addTime(absolute_time_t time) {
         uint64_t usec_total = to_us_since_boot(time);
         uint32_t sec = usec_total / 1'000'000;
         uint32_t usec = usec_total % 1'000'000;
-        addNumber("sec", sec);
-        addNumber("usec", usec);
+        add("sec", sec);
+        add("usec", usec);
     }
 
     bool toBuffer(char* buf, int size) const {
@@ -45,6 +50,7 @@ public:
 private:
     using CJSONPtr = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
     CJSONPtr root_;
+    cJSON* payload_;
 };
 
 #endif /* end of include guard: JSON_HPP */
