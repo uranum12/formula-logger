@@ -27,6 +27,7 @@
 
 #include "json.hpp"
 #include "meter.hpp"
+#include "msgpack.hpp"
 
 #define STR_SIZE (512)
 #define QUEUE_SIZE (32)
@@ -173,73 +174,11 @@ void core1_main() {
     for (;;) {
         if (queue_try_remove(&uart_queue, &str)) {
             printf("%s\n", str);
-            cJSON* root = cJSON_Parse(str);
-            if (!root) {
-                printf("JSON parse error\n");
-                continue;
+            auto msgpack = MsgPack<SPI_SLAVE_BUF_SIZE>(str);
+
+            if (uint8_t* buf = msgpack.getBuf(); buf != nullptr) {
+                spi_slave_push_bytes(buf);
             }
-
-            uint8_t buf[SPI_SLAVE_BUF_SIZE];
-            memset(buf, 0x00, SPI_SLAVE_BUF_SIZE);
-            mem_t mem = {buf, SPI_SLAVE_BUF_SIZE, 4};
-            cmp_ctx_t cmp;
-
-            cmp_init(&cmp, &mem, mem_read, mem_skip, mem_write);
-            bool ok = true;
-
-            const char* topic =
-                cJSON_GetStringValue(cJSON_GetObjectItem(root, "topic"));
-            cJSON* payload = cJSON_GetObjectItem(root, "payload");
-
-            int size = cJSON_GetArraySize(payload);
-
-            ok &= cmp_write_map(&cmp, 2);
-            ok &= cmp_write_str(&cmp, "topic", 5);
-            ok &= cmp_write_str(&cmp, topic, strlen(topic));
-            ok &= cmp_write_str(&cmp, "payload", 7);
-            ok &= cmp_write_map(&cmp, size);
-
-            cJSON* item = payload->child;
-            while (item) {
-                ok &= cmp_write_str(&cmp, item->string, strlen(item->string));
-
-                if (cJSON_IsNumber(item)) {
-                    double d = item->valuedouble;
-                    double i;
-                    if (modf(d, &i) == 0.0) {
-                        ok &= cmp_write_integer(&cmp, (int64_t)i);
-                    } else {
-                        ok &= cmp_write_double(&cmp, d);
-                    }
-                } else if (cJSON_IsBool(item)) {
-                    ok &= cmp_write_bool(&cmp, cJSON_IsTrue(item));
-                } else if (cJSON_IsString(item)) {
-                    ok &= cmp_write_str(&cmp, item->valuestring,
-                                        strlen(item->valuestring));
-                } else {
-                    ok &= cmp_write_nil(&cmp);
-                }
-
-                item = item->next;
-            }
-
-            cJSON_Delete(root);
-
-            if (!ok) {
-                printf("msgpack serialize error\n");
-                printf("%s\n", cmp_strerror(&cmp));
-                continue;
-            }
-
-            int length = mem.pos - 4;
-            int crc = crc16(buf + 4, length);
-
-            buf[0] = length >> 8;
-            buf[1] = length & 0xFF;
-            buf[2] = crc >> 8;
-            buf[3] = crc & 0xFF;
-
-            spi_slave_push_bytes(buf);
 
             // auto gear_opt = parseGear(str);
             // if (gear_opt) {
@@ -404,36 +343,12 @@ int main() {
             // json_stroke_front.toBuffer(buf, STR_SIZE);
             // msg_publish("stroke/front", buf);
             {
-                uint8_t buf[SPI_SLAVE_BUF_SIZE];
-                memset(buf, 0x00, SPI_SLAVE_BUF_SIZE);
-                mem_t mem = {buf, SPI_SLAVE_BUF_SIZE, 4};
-                cmp_ctx_t cmp;
+                auto msgpack = MsgPack<SPI_SLAVE_BUF_SIZE>("stroke/front", 2);
+                msgpack.addTime(get_absolute_time());
+                msgpack.add("left", left);
+                msgpack.add("right", right);
 
-                cmp_init(&cmp, &mem, mem_read, mem_skip, mem_write);
-
-                bool ok = true;
-                ok &= cmp_write_map(&cmp, 2);
-                ok &= cmp_write_str(&cmp, "topic", 5);
-                ok &= cmp_write_str(&cmp, "stroke/front", 12);
-                ok &= cmp_write_str(&cmp, "payload", 7);
-                ok &= cmp_write_map(&cmp, 2);
-                ok &= cmp_write_str(&cmp, "left", 4);
-                ok &= cmp_write_double(&cmp, left);
-                ok &= cmp_write_str(&cmp, "right", 5);
-                ok &= cmp_write_double(&cmp, right);
-
-                if (!ok) {
-                    printf("msgpack serialize error\n");
-                    printf("%s\n", cmp_strerror(&cmp));
-                } else {
-                    int length = mem.pos - 4;
-                    int crc = crc16(buf + 4, length);
-
-                    buf[0] = length >> 8;
-                    buf[1] = length & 0xFF;
-                    buf[2] = crc >> 8;
-                    buf[3] = crc & 0xFF;
-
+                if (uint8_t* buf = msgpack.getBuf(); buf != nullptr) {
                     spi_slave_push_bytes(buf);
                 }
             }
