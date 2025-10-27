@@ -3,6 +3,7 @@ use std::env;
 mod gps;
 mod save;
 mod spi;
+mod util;
 
 fn main() {
     match env::args().nth(1).as_deref() {

@@ -2,12 +2,15 @@ use std::io::{self, BufRead, BufReader};
 use std::thread;
 use std::time::Duration;
 
+use anyhow::{Context, Result};
 use chrono::{NaiveTime, Timelike};
 use nmea::ParseResult;
 use nmea::sentences::{FixType, GgaData, VtgData};
 use nng::{Protocol, Socket};
 use serde::Serialize;
 use serialport::SerialPort;
+
+use crate::util::socket;
 
 #[derive(Debug, Serialize)]
 struct GGAMsg {
@@ -35,10 +38,11 @@ struct Msg<T> {
     payload: T,
 }
 
-fn serial_init(serial_dev: &str, serial_baud: u32) -> io::Result<BufReader<Box<dyn SerialPort>>> {
+fn serial_init(serial_dev: &str, serial_baud: u32) -> Result<BufReader<Box<dyn SerialPort>>> {
     let port = serialport::new(serial_dev, serial_baud)
         .timeout(Duration::from_millis(1000))
-        .open()?;
+        .open()
+        .with_context(|| format!("serial {serial_dev} open failed. baudrate: {serial_baud}"))?;
     let reader = BufReader::new(port);
     Ok(reader)
 }
@@ -106,16 +110,7 @@ pub fn gps() {
         }
     };
 
-    let socket = match Socket::new(Protocol::Pub0).and_then(|s| {
-        s.listen(SOCKET_ADDR)?;
-        Ok(s)
-    }) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Socket init failed: {e}");
-            return;
-        }
-    };
+    let socket = socket::init_pub(SOCKET_ADDR).unwrap();
 
     thread::sleep(Duration::from_secs(1));
 
@@ -129,11 +124,18 @@ pub fn gps() {
             }
         };
 
-        match nmea::parse_str(&line) {
-            Ok(ParseResult::GGA(gga)) => send_msg(&socket, "gps/gga", make_gga_msg(gga)),
-            Ok(ParseResult::VTG(vtg)) => send_msg(&socket, "gps/vtg", make_vtg_msg(vtg)),
-            Ok(_) => (),
-            Err(e) => eprintln!("NMEA parse failed: {e}"),
+        let parsed = match nmea::parse_str(&line) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("NMEA parse failed: {e}");
+                continue;
+            }
+        };
+
+        match parsed {
+            ParseResult::GGA(gga) => send_msg(&socket, "gps/gga", make_gga_msg(gga)),
+            ParseResult::VTG(vtg) => send_msg(&socket, "gps/vtg", make_vtg_msg(vtg)),
+            _ => (),
         }
     }
 }

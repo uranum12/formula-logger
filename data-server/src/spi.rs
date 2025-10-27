@@ -1,39 +1,49 @@
-use std::{io, thread, time::Duration};
+use std::{thread, time::Duration};
 
+use anyhow::{Context, Result};
 use crc::{CRC_16_IBM_3740, Crc};
-use nng::{Protocol, Socket};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
-fn spi_init(spi_dev: &str, spi_baud: u32) -> io::Result<Spidev> {
-    let mut spi = Spidev::open(spi_dev)?;
+use crate::util::socket;
+
+fn spi_init(spi_dev: &str, spi_baud: u32) -> Result<Spidev> {
+    let mut spi =
+        Spidev::open(spi_dev).with_context(|| format!("spidev {} open failed.", spi_dev))?;
 
     let options = SpidevOptions::new()
         .bits_per_word(8)
         .max_speed_hz(spi_baud)
         .mode(SpiModeFlags::SPI_MODE_0)
         .build();
-    spi.configure(&options)?;
+    spi.configure(&options).with_context(|| {
+        format!(
+            "spidev {} configure failed. options: {:?}",
+            spi_dev, options
+        )
+    })?;
 
     Ok(spi)
 }
 
-fn read_length(spi: &mut Spidev) -> io::Result<u16> {
+fn read_length(spi: &mut Spidev) -> Result<u16> {
     let mut rx_buf = [0u8; 2];
 
     let mut transfer = SpidevTransfer::read(&mut rx_buf);
-    spi.transfer(&mut transfer)?;
+    spi.transfer(&mut transfer)
+        .context("spi transfer failed.")?;
 
     let len = u16::from_be_bytes(rx_buf);
 
     Ok(len)
 }
 
-fn read_data(spi: &mut Spidev, len: u16) -> io::Result<(u16, Vec<u8>)> {
+fn read_data(spi: &mut Spidev, len: u16) -> Result<(u16, Vec<u8>)> {
     let buf_size: usize = len as usize + 4;
     let mut rx_buf = vec![0u8; buf_size];
 
     let mut transfer = SpidevTransfer::read(&mut rx_buf);
-    spi.transfer(&mut transfer)?;
+    spi.transfer(&mut transfer)
+        .context("spi transfer failed.")?;
 
     let crc = u16::from_be_bytes([rx_buf[2], rx_buf[3]]);
     let data = rx_buf[4..].to_vec();
@@ -41,11 +51,12 @@ fn read_data(spi: &mut Spidev, len: u16) -> io::Result<(u16, Vec<u8>)> {
     Ok((crc, data))
 }
 
-fn write_next(spi: &mut Spidev) -> io::Result<()> {
+fn write_next(spi: &mut Spidev) -> Result<()> {
     let tx_buf = [0x01u8];
 
     let mut transfer = SpidevTransfer::write(&tx_buf);
-    spi.transfer(&mut transfer)?;
+    spi.transfer(&mut transfer)
+        .context("spi transfer failed.")?;
 
     Ok(())
 }
@@ -63,16 +74,7 @@ pub fn spi() {
         }
     };
 
-    let socket = match Socket::new(Protocol::Pub0).and_then(|s| {
-        s.listen(SOCKET_ADDR)?;
-        Ok(s)
-    }) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Socket init failed: {e}");
-            return;
-        }
-    };
+    let socket = socket::init_pub(SOCKET_ADDR).unwrap();
 
     let crc16 = Crc::<u16>::new(&CRC_16_IBM_3740);
 
