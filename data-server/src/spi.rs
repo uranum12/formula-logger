@@ -61,20 +61,14 @@ fn write_next(spi: &mut Spidev) -> Result<()> {
     Ok(())
 }
 
-pub fn spi() {
+pub fn spi() -> Result<()> {
     const SPI_DEV: &str = "/dev/spidev0.0";
     const SPI_BAUD: u32 = 1_000_000;
     const SOCKET_ADDR: &str = "ipc:///tmp/logger_spi.sock";
 
-    let mut spi = match spi_init(SPI_DEV, SPI_BAUD) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("SPI init failed: {e}");
-            return;
-        }
-    };
+    let mut spi = spi_init(SPI_DEV, SPI_BAUD)?;
 
-    let socket = socket::init_pub(SOCKET_ADDR).unwrap();
+    let socket = socket::init_pub(SOCKET_ADDR)?;
 
     let crc16 = Crc::<u16>::new(&CRC_16_IBM_3740);
 

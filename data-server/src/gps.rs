@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use chrono::{NaiveTime, Timelike};
 use nmea::ParseResult;
 use nmea::sentences::{FixType, GgaData, VtgData};
-use nng::{Protocol, Socket};
+use nng::Socket;
 use serde::Serialize;
 use serialport::SerialPort;
 
@@ -97,20 +97,14 @@ fn send_msg<T: Serialize>(socket: &Socket, topic: &'static str, payload: T) {
     }
 }
 
-pub fn gps() {
+pub fn gps() -> Result<()> {
     const SERIAL_DEV: &str = "/dev/serial0";
     const SERIAL_BAUD: u32 = 9600;
     const SOCKET_ADDR: &str = "ipc:///tmp/logger_gps.sock";
 
-    let reader = match serial_init(SERIAL_DEV, SERIAL_BAUD) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Serial init failed: {e}");
-            return;
-        }
-    };
+    let reader = serial_init(SERIAL_DEV, SERIAL_BAUD)?;
 
-    let socket = socket::init_pub(SOCKET_ADDR).unwrap();
+    let socket = socket::init_pub(SOCKET_ADDR)?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -138,4 +132,6 @@ pub fn gps() {
             _ => (),
         }
     }
+
+    Ok(())
 }
