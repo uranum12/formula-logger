@@ -10,6 +10,7 @@ use rmpv::Value;
 use rmpv::decode::read_value;
 use rmpv::encode::write_value;
 
+use crate::config::Config;
 use crate::util::database::{self, Data};
 use crate::util::socket;
 
@@ -45,14 +46,10 @@ fn extract_msg(msg: &[u8]) -> Result<(String, Vec<u8>)> {
     Ok((topic, payload))
 }
 
-pub fn save() -> Result<()> {
-    const DB_DIR: &str = "data";
-    const BULK_SIZE: usize = 100;
-    const BULK_INTERVAL: u64 = 1;
-
+pub fn save(config: Config) -> Result<()> {
     let start = Instant::now();
 
-    let db_dir = PathBuf::from(DB_DIR);
+    let db_dir = PathBuf::from(config.save.db_dir.as_str());
     if !db_dir.exists() {
         fs::create_dir_all(&db_dir)
             .with_context(|| format!("Failed to create directory: {}", db_dir.display()))?;
@@ -62,11 +59,11 @@ pub fn save() -> Result<()> {
     let db_path = db_dir.join(filename);
     let mut conn = database::db_init(&db_path)?;
 
-    let publishers = ["ipc:///tmp/logger_spi.sock", "ipc:///tmp/logger_gps.sock"];
+    let publishers = [config.socket.spi.as_str(), config.socket.gps.as_str()];
 
     let socket = socket::init_sub(&publishers)?;
 
-    let mut buffer: Vec<Data> = Vec::with_capacity(BULK_SIZE);
+    let mut buffer: Vec<Data> = Vec::with_capacity(config.save.bulk_size as usize);
     let mut last_flush = Instant::now();
 
     loop {
@@ -88,7 +85,9 @@ pub fn save() -> Result<()> {
             }
         }
 
-        if BULK_SIZE <= buffer.len() || Duration::from_secs(BULK_INTERVAL) <= last_flush.elapsed() {
+        if config.save.bulk_size as usize <= buffer.len()
+            || Duration::from_secs(config.save.bulk_interval as u64) <= last_flush.elapsed()
+        {
             if !buffer.is_empty() {
                 if let Err(e) = database::db_insert(&mut conn, &buffer) {
                     eprintln!("db insert error: {e}");

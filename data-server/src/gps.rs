@@ -10,6 +10,7 @@ use nng::Socket;
 use serde::Serialize;
 use serialport::SerialPort;
 
+use crate::config::Config;
 use crate::util::socket;
 
 #[derive(Debug, Serialize)]
@@ -97,14 +98,10 @@ fn send_msg<T: Serialize>(socket: &Socket, topic: &'static str, payload: T) {
     }
 }
 
-pub fn gps() -> Result<()> {
-    const SERIAL_DEV: &str = "/dev/serial0";
-    const SERIAL_BAUD: u32 = 9600;
-    const SOCKET_ADDR: &str = "ipc:///tmp/logger_gps.sock";
+pub fn gps(config: Config) -> Result<()> {
+    let reader = serial_init(config.serial.dev.as_str(), config.serial.baud)?;
 
-    let reader = serial_init(SERIAL_DEV, SERIAL_BAUD)?;
-
-    let socket = socket::init_pub(SOCKET_ADDR)?;
+    let socket = socket::init_pub(config.socket.gps.as_str())?;
 
     thread::sleep(Duration::from_secs(1));
 

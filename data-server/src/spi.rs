@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use crc::{CRC_16_IBM_3740, Crc};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
+use crate::config::Config;
 use crate::util::socket;
 
 fn spi_init(spi_dev: &str, spi_baud: u32) -> Result<Spidev> {
@@ -61,14 +62,10 @@ fn write_next(spi: &mut Spidev) -> Result<()> {
     Ok(())
 }
 
-pub fn spi() -> Result<()> {
-    const SPI_DEV: &str = "/dev/spidev0.0";
-    const SPI_BAUD: u32 = 1_000_000;
-    const SOCKET_ADDR: &str = "ipc:///tmp/logger_spi.sock";
+pub fn spi(config: Config) -> Result<()> {
+    let mut spi = spi_init(config.spi.dev.as_str(), config.spi.baud)?;
 
-    let mut spi = spi_init(SPI_DEV, SPI_BAUD)?;
-
-    let socket = socket::init_pub(SOCKET_ADDR)?;
+    let socket = socket::init_pub(config.socket.spi.as_str())?;
 
     let crc16 = Crc::<u16>::new(&CRC_16_IBM_3740);
 
